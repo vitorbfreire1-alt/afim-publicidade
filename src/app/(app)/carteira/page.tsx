@@ -29,10 +29,10 @@ export default async function Carteira({ searchParams }: { searchParams: Promise
     const atrasadas = abertas.filter((p) => statusParcela(p, h) === "ATRASADA");
     const proxima = abertas.find((p) => p.vencimento >= h);
     const recebimento = atrasadas.length
-      ? { texto: `Em atraso (${atrasadas.length})`, cor: "text-danger" }
+      ? { texto: `Em atraso (${atrasadas.length})`, sub: null, cor: "text-danger" }
       : proxima
-        ? { texto: `Em dia · próx. ${dateBR(proxima.vencimento)}`, cor: "text-good" }
-        : { texto: "Quitado", cor: "text-good" };
+        ? { texto: "Em dia", sub: `próx. ${dateBR(proxima.vencimento)}`, cor: "text-good" }
+        : { texto: "Quitado", sub: null, cor: "text-good" };
     return {
       cp,
       recebimento,
@@ -64,8 +64,8 @@ export default async function Carteira({ searchParams }: { searchParams: Promise
         <table className="table">
           <thead>
             <tr>
-              <th>Nº</th><th>Cliente / Empresa</th><th>Ponto</th><th>Valor mensal</th><th>Forma de pagamento</th>
-              <th>Prazo do ponto</th><th>Dia venc.</th><th>Recebimento</th><th>Inadimplência acumulada</th>
+              <th>Nº</th><th>Cliente / Empresa</th><th>Ponto</th><th>Valor mensal</th><th>Pagamento</th>
+              <th>Prazo</th><th>Dia venc.</th><th>Recebimento</th><th>Inadimplência</th>
             </tr>
           </thead>
           <tbody>
@@ -77,9 +77,15 @@ export default async function Carteira({ searchParams }: { searchParams: Promise
                 <td>{cp.ponto.nome}</td>
                 <td className="whitespace-nowrap">{money(cp.valor)}</td>
                 <td>{FORMA_LABEL[cp.contrato.formaPagamento]}</td>
-                <td className="whitespace-nowrap">{dateBR(cp.inicio)} – {dateBR(cp.fim)}</td>
+                <td className="whitespace-nowrap">
+                  {dateBR(cp.inicio)}
+                  <span className="block text-xs text-ink-faint">até {dateBR(cp.fim)}</span>
+                </td>
                 <td>{cp.contrato.diaVencimento}</td>
-                <td className={`whitespace-nowrap ${recebimento.cor}`}>{recebimento.texto}</td>
+                <td className={`whitespace-nowrap ${recebimento.cor}`}>
+                  {recebimento.texto}
+                  {recebimento.sub && <span className="block text-xs text-ink-faint">{recebimento.sub}</span>}
+                </td>
                 <td className={inadimplencia ? "font-semibold text-danger" : ""}>{money(inadimplencia)}</td>
               </tr>
             ))}

@@ -1,5 +1,9 @@
 import type { Metadata, Viewport } from "next";
+import { Inter, Sora } from "next/font/google";
 import "./globals.css";
+
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
+const sora = Sora({ subsets: ["latin"], variable: "--font-sora", display: "swap" });
 
 export const metadata: Metadata = {
   title: { default: "AFIM Publicidade", template: "%s · AFIM Publicidade" },
@@ -11,8 +15,8 @@ export const viewport: Viewport = { themeColor: "#0b0b0c" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR">
-      <body className="min-h-screen">{children}</body>
+    <html lang="pt-BR" className={`${inter.variable} ${sora.variable}`}>
+      <body>{children}</body>
     </html>
   );
 }

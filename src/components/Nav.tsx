@@ -2,27 +2,82 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import {
+  Briefcase,
+  CircleDollarSign,
+  LayoutDashboard,
+  MapPin,
+  ShieldCheck,
+  Users,
+  type LucideIcon,
+} from "lucide-react";
+
+const ICONES: Record<string, LucideIcon> = {
+  painel: LayoutDashboard,
+  carteira: Briefcase,
+  financeiro: CircleDollarSign,
+  clientes: Users,
+  pontos: MapPin,
+  usuarios: ShieldCheck,
+};
 
 export interface NavItem {
   href: string;
   label: string;
+  icone: keyof typeof ICONES;
 }
 
-export default function Nav({ items }: { items: NavItem[] }) {
+/** `lateral`: menu do computador. `inferior`: barra fixa de app no celular. */
+export default function Nav({ items, variante }: { items: NavItem[]; variante: "lateral" | "inferior" }) {
   const pathname = usePathname();
+  const ativo = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
+
+  if (variante === "inferior") {
+    return (
+      <nav
+        aria-label="Principal"
+        className="fixed inset-x-3 bottom-3 z-20 flex justify-around rounded-2xl border border-line bg-[#0c0c10]/85 p-1.5 shadow-[0_18px_40px_-12px_rgba(0,0,0,0.9)] backdrop-blur-xl lg:hidden"
+        style={{ paddingBottom: "max(0.375rem, env(safe-area-inset-bottom))" }}
+      >
+        {items.map((it) => {
+          const Icone = ICONES[it.icone];
+          const on = ativo(it.href);
+          return (
+            <Link
+              key={it.href}
+              href={it.href}
+              aria-current={on ? "page" : undefined}
+              className={`flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-xl px-1 py-1.5 text-[0.62rem] font-semibold transition-colors ${
+                on ? "bg-gold/15 text-gold-soft" : "text-ink-faint"
+              }`}
+            >
+              <Icone className="size-[1.15rem]" strokeWidth={on ? 2.4 : 1.8} />
+              <span className="truncate">{it.label}</span>
+            </Link>
+          );
+        })}
+      </nav>
+    );
+  }
+
   return (
-    <nav className="-mx-4 flex gap-1 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0" aria-label="Principal">
+    <nav aria-label="Principal" className="flex flex-col gap-1">
       {items.map((it) => {
-        const active = it.href === "/" ? pathname === "/" : pathname.startsWith(it.href);
+        const Icone = ICONES[it.icone];
+        const on = ativo(it.href);
         return (
           <Link
             key={it.href}
             href={it.href}
-            aria-current={active ? "page" : undefined}
-            className={`whitespace-nowrap rounded-lg px-3 py-2 text-sm font-semibold ${
-              active ? "bg-gold text-black" : "text-ink-soft hover:text-ink"
+            aria-current={on ? "page" : undefined}
+            className={`group relative flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-semibold transition-all ${
+              on
+                ? "bg-gradient-to-r from-gold/20 to-transparent text-gold-soft"
+                : "text-ink-soft hover:bg-white/5 hover:text-ink"
             }`}
           >
+            {on && <span aria-hidden className="absolute inset-y-2 left-0 w-0.5 rounded-full bg-gold shadow-[0_0_10px_var(--gold)]" />}
+            <Icone className="size-[1.1rem]" strokeWidth={on ? 2.3 : 1.8} />
             {it.label}
           </Link>
         );

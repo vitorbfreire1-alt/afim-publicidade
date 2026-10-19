@@ -134,3 +134,41 @@ export async function alertas() {
   ]);
   return { atrasadas, aVencer, terminando };
 }
+
+export interface MesFluxo {
+  rotulo: string; // "out"
+  atual: boolean;
+  previsto: number;
+  recebido: number;
+}
+
+/** Previsto (por vencimento) x recebido (por data de pagamento) de 2 meses atrás até 3 meses à frente. */
+export async function fluxoMensal(): Promise<MesFluxo[]> {
+  const h = hoje();
+  const meses = Array.from({ length: 6 }, (_, i) => {
+    const d = new Date(Date.UTC(h.getUTCFullYear(), h.getUTCMonth() - 2 + i, 1));
+    return { chave: `${d.getUTCFullYear()}-${d.getUTCMonth()}`, d };
+  });
+  const inicio = meses[0].d;
+  const fim = new Date(Date.UTC(meses[5].d.getUTCFullYear(), meses[5].d.getUTCMonth() + 1, 0));
+
+  const parcelas = await prisma.parcela.findMany({
+    where: { OR: [{ vencimento: { gte: inicio, lte: fim } }, { pagoEm: { gte: inicio, lte: fim } }] },
+    select: { vencimento: true, valor: true, pagoEm: true, valorPago: true, contrato: { select: { status: true } } },
+  });
+
+  const chaveDe = (d: Date) => `${d.getUTCFullYear()}-${d.getUTCMonth()}`;
+  const previsto = new Map<string, number>();
+  const recebido = new Map<string, number>();
+  for (const p of parcelas) {
+    if (p.contrato.status === "ATIVO") previsto.set(chaveDe(p.vencimento), (previsto.get(chaveDe(p.vencimento)) ?? 0) + Number(p.valor));
+    if (p.pagoEm) recebido.set(chaveDe(p.pagoEm), (recebido.get(chaveDe(p.pagoEm)) ?? 0) + Number(p.valorPago ?? 0));
+  }
+
+  return meses.map(({ chave, d }) => ({
+    rotulo: new Intl.DateTimeFormat("pt-BR", { month: "short", timeZone: "UTC" }).format(d).replace(".", ""),
+    atual: chave === chaveDe(h),
+    previsto: previsto.get(chave) ?? 0,
+    recebido: recebido.get(chave) ?? 0,
+  }));
+}

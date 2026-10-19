@@ -1,15 +1,15 @@
 export default function Logo({ size = "md" }: { size?: "md" | "lg" }) {
+  const grande = size === "lg";
   return (
     <span className="inline-flex flex-col leading-none">
-      <span
-        className={`font-black tracking-tight text-gold ${size === "lg" ? "text-5xl" : "text-2xl"}`}
-      >
+      <span className={`font-display font-extrabold text-grad ${grande ? "text-6xl tracking-tight" : "text-2xl tracking-tight"}`}>
         AFIM
       </span>
       <span
-        className={`font-semibold tracking-[0.3em] text-ink-soft ${size === "lg" ? "text-xs" : "text-[0.55rem]"}`}
+        className={`flex items-center gap-2 font-semibold text-ink-soft ${grande ? "mt-2 text-[0.7rem] tracking-[0.5em]" : "mt-1 text-[0.5rem] tracking-[0.42em]"}`}
       >
         PUBLICIDADE
+        <span aria-hidden className="pulse-dot size-1 rounded-full bg-gold shadow-[0_0_8px_var(--gold)]" />
       </span>
     </span>
   );

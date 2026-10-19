@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { LogOut } from "lucide-react";
 import Logo from "@/components/Logo";
 import Nav, { type NavItem } from "@/components/Nav";
 import { logout } from "@/app/actions/auth";
@@ -8,31 +9,58 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const user = await requireUser();
 
   const items: NavItem[] = [
-    { href: "/", label: "Painel" },
-    { href: "/carteira", label: "Carteira" },
-    { href: "/financeiro", label: "Financeiro" },
-    { href: "/clientes", label: "Clientes" },
-    { href: "/pontos", label: "Pontos" },
-    ...(user.papel === "DONO" ? [{ href: "/usuarios", label: "Usuários" }] : []),
+    { href: "/", label: "Painel", icone: "painel" },
+    { href: "/carteira", label: "Carteira", icone: "carteira" },
+    { href: "/financeiro", label: "Financeiro", icone: "financeiro" },
+    { href: "/clientes", label: "Clientes", icone: "clientes" },
+    { href: "/pontos", label: "Pontos", icone: "pontos" },
+    ...(user.papel === "DONO" ? [{ href: "/usuarios", label: "Usuários", icone: "usuarios" } as NavItem] : []),
   ];
+  const iniciais = user.nome.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase();
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 pb-16">
-      <header className="sticky top-0 z-10 -mx-4 mb-6 border-b border-line bg-bg/95 px-4 pt-3 backdrop-blur sm:mx-0 sm:px-0">
-        <div className="mb-2 flex items-center justify-between">
+    <div className="lg:grid lg:grid-cols-[17rem_minmax(0,1fr)]">
+      {/* Menu lateral (computador) */}
+      <aside className="sticky top-0 hidden h-screen flex-col border-r border-line bg-black/30 px-4 py-6 backdrop-blur-xl lg:flex">
+        <Link href="/" aria-label="Painel" className="mb-8 px-2">
+          <Logo />
+        </Link>
+        <Nav items={items} variante="lateral" />
+        <form action={logout} className="mt-auto">
+          <div className="card flex items-center gap-3 p-3">
+            <span className="grid size-9 shrink-0 place-items-center rounded-full bg-gradient-to-br from-gold-soft to-gold-deep text-xs font-bold text-black">
+              {iniciais}
+            </span>
+            <span className="min-w-0 flex-1 leading-tight">
+              <span className="block truncate text-sm font-semibold">{user.nome}</span>
+              <span className="text-xs text-ink-faint">{PAPEL_LABEL[user.papel]}</span>
+            </span>
+            <button className="btn btn-sm !min-h-9 !px-2.5" type="submit" aria-label="Sair" title="Sair">
+              <LogOut className="size-4" />
+            </button>
+          </div>
+        </form>
+      </aside>
+
+      <div className="min-w-0">
+        {/* Topo (celular) */}
+        <header className="sticky top-0 z-10 flex items-center justify-between border-b border-line bg-bg/70 px-4 py-3 backdrop-blur-xl lg:hidden">
           <Link href="/" aria-label="Painel">
             <Logo />
           </Link>
-          <form action={logout} className="flex items-center gap-3">
-            <span className="hidden text-xs text-ink-soft sm:inline">
-              {user.nome} · {PAPEL_LABEL[user.papel]}
-            </span>
-            <button className="btn btn-sm" type="submit">Sair</button>
+          <form action={logout} className="flex items-center gap-2">
+            <span className="text-xs text-ink-soft">{user.nome.split(" ")[0]}</span>
+            <button className="btn btn-sm !px-2.5" type="submit" aria-label="Sair">
+              <LogOut className="size-4" />
+            </button>
           </form>
-        </div>
-        <Nav items={items} />
-      </header>
-      {children}
+        </header>
+
+        <div className="mx-auto w-full max-w-6xl px-4 pb-32 pt-6 lg:px-10 lg:pb-14 lg:pt-10">{children}</div>
+      </div>
+
+      {/* Barra inferior (celular) */}
+      <Nav items={items} variante="inferior" />
     </div>
   );
 }
