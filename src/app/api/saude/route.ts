@@ -10,6 +10,26 @@ export async function GET() {
     DIRECT_URL: Boolean(process.env.DIRECT_URL),
   };
 
+  // Só partes não secretas da conexão, para achar erro de digitação sem expor a senha.
+  const descreve = (raw?: string) => {
+    if (!raw) return null;
+    try {
+      const u = new URL(raw.trim());
+      const senha = decodeURIComponent(u.password);
+      return {
+        usuario: decodeURIComponent(u.username),
+        servidor: `${u.hostname}:${u.port}`,
+        banco: u.pathname,
+        tamanhoSenha: senha.length,
+        senhaComColchete: /[\[\]]/.test(senha),
+        urlComEspaco: raw !== raw.trim() || /\s/.test(raw.trim()),
+      };
+    } catch {
+      return "URL inválida";
+    }
+  };
+  const conexao = { DATABASE_URL: descreve(process.env.DATABASE_URL), DIRECT_URL: descreve(process.env.DIRECT_URL) };
+
   let banco = "ok";
   try {
     await prisma.usuario.count();
@@ -20,5 +40,5 @@ export async function GET() {
     banco = `erro ${err.errorCode ?? err.code ?? err.name}: ${detalhe}`.slice(0, 500);
   }
 
-  return Response.json({ config, banco }, { status: banco === "ok" && Object.values(config).every(Boolean) ? 200 : 500 });
+  return Response.json({ config, conexao, banco }, { status: banco === "ok" && Object.values(config).every(Boolean) ? 200 : 500 });
 }
