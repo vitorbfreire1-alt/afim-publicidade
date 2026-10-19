@@ -1,0 +1,37 @@
+import type { Ponto } from "@prisma/client";
+import { TIPOS, TIPO_SINGULAR } from "@/lib/labels";
+
+export default function PontoForm({ ponto, tipoInicial, action, label }: {
+  ponto?: Ponto;
+  tipoInicial?: string;
+  action: (fd: FormData) => void | Promise<void>;
+  label: string;
+}) {
+  return (
+    <form action={action} className="card grid gap-4 p-4 sm:grid-cols-2">
+      <div>
+        <label className="label" htmlFor="tipo">Tipo de mídia</label>
+        <select className="input" id="tipo" name="tipo" defaultValue={ponto?.tipo ?? tipoInicial ?? "LED"}>
+          {TIPOS.map((t) => (
+            <option key={t} value={t}>{TIPO_SINGULAR[t]}</option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <label className="label" htmlFor="nome">Ponto (nome / local)</label>
+        <input className="input" id="nome" name="nome" required defaultValue={ponto?.nome ?? ""} />
+      </div>
+      <div className="sm:col-span-2">
+        <label className="label" htmlFor="endereco">Endereço</label>
+        <input className="input" id="endereco" name="endereco" defaultValue={ponto?.endereco ?? ""} />
+      </div>
+      <div className="sm:col-span-2">
+        <label className="label" htmlFor="observacoes">Observações (tamanho, faces, etc.)</label>
+        <textarea className="input" id="observacoes" name="observacoes" rows={3} defaultValue={ponto?.observacoes ?? ""} />
+      </div>
+      <div className="sm:col-span-2">
+        <button className="btn btn-gold w-full sm:w-auto" type="submit">{label}</button>
+      </div>
+    </form>
+  );
+}

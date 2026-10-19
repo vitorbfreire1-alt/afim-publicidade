@@ -1,0 +1,96 @@
+import { prisma } from "./prisma";
+import { addDias, hoje } from "./format";
+
+/** Soma meses (UTC) travando o dia no último dia do mês quando preciso. */
+function addMeses(d: Date, n: number, dia = d.getUTCDate()): Date {
+  const alvo = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + n, 1));
+  const ultimo = new Date(Date.UTC(alvo.getUTCFullYear(), alvo.getUTCMonth() + 1, 0)).getUTCDate();
+  alvo.setUTCDate(Math.min(dia, ultimo));
+  return alvo;
+}
+
+/** Fim do contrato: início + prazo, menos um dia (12 meses a partir de 10/01 → 09/01 do ano seguinte). */
+export const calcularFim = (inicio: Date, prazoMeses: number) => addDias(addMeses(inicio, prazoMeses), -1);
+
+/**
+ * Uma parcela por mês de contrato. A 1ª vence no dia de vencimento do mês de início;
+ * se esse dia já passou em relação ao início, vai para o mês seguinte.
+ */
+export function gerarParcelas(inicio: Date, prazoMeses: number, diaVencimento: number, valor: number) {
+  const primeiroMes = inicio.getUTCDate() <= diaVencimento ? 0 : 1;
+  return Array.from({ length: prazoMeses }, (_, i) => ({
+    numero: i + 1,
+    vencimento: addMeses(inicio, primeiroMes + i, diaVencimento),
+    valor,
+  }));
+}
+
+/** Parcelas de contratos ativos vencidas e não pagas. */
+export const filtroEmAtraso = () => ({
+  pagoEm: null,
+  vencimento: { lt: hoje() },
+  contrato: { status: "ATIVO" as const },
+});
+
+export async function resumoFinanceiro() {
+  const h = hoje();
+  const inicioMes = new Date(Date.UTC(h.getUTCFullYear(), h.getUTCMonth(), 1));
+  const fimMes = new Date(Date.UTC(h.getUTCFullYear(), h.getUTCMonth() + 1, 0));
+  const ativo = { contrato: { status: "ATIVO" as const } };
+
+  const [atraso, previstoMes, recebidoMes, contratosAtivos, pontosOcupados, pontosTotal] = await Promise.all([
+    prisma.parcela.aggregate({ where: filtroEmAtraso(), _sum: { valor: true }, _count: true }),
+    prisma.parcela.aggregate({
+      where: { ...ativo, vencimento: { gte: inicioMes, lte: fimMes } },
+      _sum: { valor: true },
+    }),
+    prisma.parcela.aggregate({
+      where: { pagoEm: { gte: inicioMes, lte: fimMes } },
+      _sum: { valorPago: true },
+    }),
+    prisma.contrato.count({ where: { status: "ATIVO" } }),
+    prisma.ponto.count({ where: { ativo: true, contratos: { some: { contrato: { status: "ATIVO" } } } } }),
+    prisma.ponto.count({ where: { ativo: true } }),
+  ]);
+
+  return {
+    inadimplencia: Number(atraso._sum.valor ?? 0),
+    parcelasEmAtraso: atraso._count,
+    previstoMes: Number(previstoMes._sum.valor ?? 0),
+    recebidoMes: Number(recebidoMes._sum.valorPago ?? 0),
+    contratosAtivos,
+    pontosOcupados,
+    pontosTotal,
+  };
+}
+
+export type StatusParcela = "PAGA" | "ATRASADA" | "A_VENCER";
+
+export function statusParcela(p: { pagoEm: Date | null; vencimento: Date }, ref = hoje()): StatusParcela {
+  if (p.pagoEm) return "PAGA";
+  return p.vencimento < ref ? "ATRASADA" : "A_VENCER";
+}
+
+/** Listas do painel: o que precisa de ação agora. */
+export async function alertas() {
+  const h = hoje();
+  const ativo = { contrato: { status: "ATIVO" as const } };
+  const include = { contrato: { include: { cliente: true } } };
+
+  const [atrasadas, aVencer, terminando] = await Promise.all([
+    prisma.parcela.findMany({ where: filtroEmAtraso(), include, orderBy: { vencimento: "asc" }, take: 15 }),
+    prisma.parcela.findMany({
+      where: { ...ativo, pagoEm: null, vencimento: { gte: h, lte: addDias(h, 7) } },
+      include,
+      orderBy: { vencimento: "asc" },
+      take: 15,
+    }),
+    prisma.contrato.findMany({
+      where: { status: "ATIVO", fim: { gte: h, lte: addDias(h, 60) } },
+      include: { cliente: true, pontos: { include: { ponto: true } } },
+      orderBy: { fim: "asc" },
+      take: 15,
+    }),
+  ]);
+  return { atrasadas, aVencer, terminando };
+}
