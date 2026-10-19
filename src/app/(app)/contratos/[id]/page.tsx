@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import ConfirmButton from "@/components/ConfirmButton";
 import Flash from "@/components/Flash";
 import ReceberParcela from "@/components/ReceberParcela";
 import StatusBadge from "@/components/StatusBadge";
@@ -40,7 +41,28 @@ export default async function ContratoPage({ params, searchParams }: {
           <h1 className="text-xl font-bold">Contrato #{c.numero}</h1>
           <Link className="text-gold hover:underline" href={`/clientes/${c.clienteId}`}>{c.cliente.nome}</Link>
         </div>
-        <span className="badge text-gold">{STATUS_CONTRATO_LABEL[c.status]}</span>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="badge text-gold">{STATUS_CONTRATO_LABEL[c.status]}</span>
+          {edita && c.status === "ATIVO" && (
+            <>
+              <form action={mudarStatusContrato.bind(null, id, "ENCERRADO", undefined)}>
+                <ConfirmButton className="btn btn-sm" mensagem="Encerrar este contrato? Ele sai da carteira e da inadimplência.">
+                  Encerrar
+                </ConfirmButton>
+              </form>
+              <form action={mudarStatusContrato.bind(null, id, "CANCELADO", undefined)}>
+                <ConfirmButton className="btn btn-sm btn-danger" mensagem="Cancelar este contrato? Ele sai da carteira e da inadimplência.">
+                  Cancelar contrato
+                </ConfirmButton>
+              </form>
+            </>
+          )}
+          {edita && c.status !== "ATIVO" && (
+            <form action={mudarStatusContrato.bind(null, id, "ATIVO", undefined)}>
+              <ConfirmButton className="btn btn-sm" mensagem="Reativar este contrato?">Reativar</ConfirmButton>
+            </form>
+          )}
+        </div>
       </div>
 
       <section className="card mb-6 grid gap-4 p-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -104,24 +126,6 @@ export default async function ContratoPage({ params, searchParams }: {
         </table>
       </div>
 
-      {edita && (
-        <div className="mt-6 flex flex-wrap gap-2">
-          {c.status === "ATIVO" ? (
-            <>
-              <form action={mudarStatusContrato.bind(null, id, "ENCERRADO")}>
-                <button className="btn btn-sm" type="submit">Encerrar contrato</button>
-              </form>
-              <form action={mudarStatusContrato.bind(null, id, "CANCELADO")}>
-                <button className="btn btn-sm btn-danger" type="submit">Cancelar contrato</button>
-              </form>
-            </>
-          ) : (
-            <form action={mudarStatusContrato.bind(null, id, "ATIVO")}>
-              <button className="btn btn-sm" type="submit">Reativar contrato</button>
-            </form>
-          )}
-        </div>
-      )}
     </main>
   );
 }

@@ -74,9 +74,11 @@ export async function criarContrato(fd: FormData) {
   redirect(msg(`/contratos/${contrato.id}`, "ok", "Contrato criado e parcelas geradas."));
 }
 
-export async function mudarStatusContrato(id: string, status: "ATIVO" | "ENCERRADO" | "CANCELADO") {
+/** `volta` é a página para onde retornar (só caminhos internos); por padrão, o próprio contrato. */
+export async function mudarStatusContrato(id: string, status: "ATIVO" | "ENCERRADO" | "CANCELADO", volta?: string) {
   await requireUser("COMERCIAL");
   await prisma.contrato.update({ where: { id }, data: { status } });
   revalidatePath("/", "layout");
-  redirect(msg(`/contratos/${id}`, "ok", "Status do contrato atualizado."));
+  const destino = volta && /^\/(?!\/)/.test(volta) ? volta : `/contratos/${id}`;
+  redirect(msg(destino, "ok", status === "ATIVO" ? "Contrato reativado." : status === "ENCERRADO" ? "Contrato encerrado." : "Contrato cancelado."));
 }
