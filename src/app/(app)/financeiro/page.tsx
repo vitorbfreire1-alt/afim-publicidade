@@ -1,4 +1,5 @@
 import Link from "next/link";
+import BotaoWhatsapp from "@/components/BotaoWhatsapp";
 import Flash from "@/components/Flash";
 import ReceberParcela from "@/components/ReceberParcela";
 import StatusBadge from "@/components/StatusBadge";
@@ -6,6 +7,7 @@ import { podeReceber, requireUser } from "@/lib/auth";
 import { filtroEmAtraso, statusParcela } from "@/lib/financeiro";
 import { dateBR, hoje, money } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import { linkCobranca } from "@/lib/whatsapp";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Financeiro" };
@@ -52,10 +54,10 @@ export default async function Financeiro({ searchParams }: { searchParams: Promi
       <div className="card table-wrap">
         <table className="table">
           <thead>
-            <tr><th>Cliente</th><th>Contrato</th><th>Parcela</th><th>{f === "pagas" ? "Recebida em" : "Vencimento"}</th><th>Valor</th><th>Situação</th><th>Recebimento</th></tr>
+            <tr><th>Cliente</th><th>Contrato</th><th>Parcela</th><th>{f === "pagas" ? "Recebida em" : "Vencimento"}</th><th>Valor</th><th>Situação</th><th>Recebimento</th><th>Cobrança</th></tr>
           </thead>
           <tbody>
-            {parcelas.length === 0 && <tr><td colSpan={7} className="text-ink-soft">Nada por aqui.</td></tr>}
+            {parcelas.length === 0 && <tr><td colSpan={8} className="text-ink-soft">Nada por aqui.</td></tr>}
             {parcelas.map((p) => (
               <tr key={p.id}>
                 <td className="font-medium">{p.contrato.cliente.nome}</td>
@@ -75,6 +77,13 @@ export default async function Financeiro({ searchParams }: { searchParams: Promi
                     pode={podeReceber(user.papel)}
                   />
                 </td>
+                <td>
+                  {!p.pagoEm && (
+                    <BotaoWhatsapp
+                      href={linkCobranca({ cliente: p.contrato.cliente, numero: p.numero, total: p.contrato._count.parcelas, vencimento: p.vencimento, valor: p.valor })}
+                    />
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -82,7 +91,7 @@ export default async function Financeiro({ searchParams }: { searchParams: Promi
             <tfoot>
               <tr>
                 <td colSpan={4} className="font-semibold text-gold">Total ({parcelas.length})</td>
-                <td colSpan={3} className="font-semibold">{money(total)}</td>
+                <td colSpan={4} className="font-semibold">{money(total)}</td>
               </tr>
             </tfoot>
           )}
