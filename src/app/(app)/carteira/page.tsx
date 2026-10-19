@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireUser } from "@/lib/auth";
+import { podeEditarCadastros, requireUser } from "@/lib/auth";
 import { statusParcela } from "@/lib/financeiro";
 import { dateBR, hoje, money } from "@/lib/format";
 import { FORMA_LABEL, TIPOS, TIPO_LABEL, isTipo } from "@/lib/labels";
@@ -10,7 +10,7 @@ export const metadata = { title: "Carteira de clientes" };
 
 /** Reproduz as abas da planilha: uma carteira por tipo de mídia, com as mesmas colunas. */
 export default async function Carteira({ searchParams }: { searchParams: Promise<{ tipo?: string }> }) {
-  const [, sp] = await Promise.all([requireUser(), searchParams]);
+  const [user, sp] = await Promise.all([requireUser(), searchParams]);
   const tipo = isTipo(sp.tipo) ? sp.tipo : "LED";
   const h = hoje();
 
@@ -44,7 +44,12 @@ export default async function Carteira({ searchParams }: { searchParams: Promise
 
   return (
     <main>
-      <h1 className="mb-4 text-xl font-bold">Carteira de clientes</h1>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h1 className="text-xl font-bold">Carteira de clientes</h1>
+        {podeEditarCadastros(user.papel) && (
+          <Link className="btn btn-gold" href="/contratos/novo">+ Novo contrato</Link>
+        )}
+      </div>
       <div className="mb-4 flex gap-2 overflow-x-auto">
         {TIPOS.map((t) => (
           <Link key={t} href={`/carteira?tipo=${t}`} className={`btn btn-sm whitespace-nowrap ${t === tipo ? "btn-gold" : ""}`}>
