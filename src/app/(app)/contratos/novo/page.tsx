@@ -1,4 +1,5 @@
 import Flash from "@/components/Flash";
+import MaskedInput from "@/components/MaskedInput";
 import { criarContrato } from "@/app/actions/contratos";
 import { requireUser } from "@/lib/auth";
 import { isoDate, hoje } from "@/lib/format";
@@ -53,7 +54,7 @@ export default async function NovoContrato({ searchParams }: { searchParams: Pro
 
         <div>
           <label className="label" htmlFor="valorMensal">Valor mensal (R$)</label>
-          <input className="input" id="valorMensal" name="valorMensal" inputMode="decimal" placeholder="1.500,00" required />
+          <MaskedInput className="input" id="valorMensal" name="valorMensal" mask="dinheiro" placeholder="1.500,00" required />
         </div>
         <div>
           <label className="label" htmlFor="formaPagamento">Forma de pagamento</label>

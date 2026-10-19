@@ -1,3 +1,4 @@
+import MaskedInput from "./MaskedInput";
 import { desfazerRecebimento, receberParcela } from "@/app/actions/parcelas";
 import { FORMAS, FORMA_LABEL } from "@/lib/labels";
 import { dateBR, isoDate, hoje } from "@/lib/format";
@@ -41,7 +42,7 @@ export default function ReceberParcela({ id, valor, forma, volta, pagoEm, formaR
         </div>
         <div>
           <label className="label">Valor recebido</label>
-          <input className="input" name="valorPago" inputMode="decimal" defaultValue={valor.toFixed(2).replace(".", ",")} required />
+          <MaskedInput className="input" name="valorPago" mask="dinheiro" defaultValue={valor.toFixed(2).replace(".", ",")} required />
         </div>
         <div>
           <label className="label">Forma</label>

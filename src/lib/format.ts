@@ -6,7 +6,9 @@ export const money = (v: unknown) => brl.format(Number(v ?? 0));
 export function parseMoney(raw: FormDataEntryValue | null): number {
   const s = String(raw ?? "").trim().replace(/[R$\s]/g, "");
   if (!s) return NaN;
-  const n = s.includes(",") ? Number(s.replace(/\./g, "").replace(",", ".")) : Number(s);
+  // "1.500,50" e "200.000" (pontos de milhar, sem vírgula) vs "1500.50" (ponto decimal).
+  const milhar = s.includes(",") || /^\d{1,3}(\.\d{3})+$/.test(s);
+  const n = milhar ? Number(s.replace(/\./g, "").replace(",", ".")) : Number(s);
   return Number.isFinite(n) ? n : NaN;
 }
 
