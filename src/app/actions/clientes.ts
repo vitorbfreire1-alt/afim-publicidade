@@ -24,6 +24,7 @@ export async function criarCliente(fd: FormData) {
   if (!d.nome) redirect(msg("/clientes/novo", "erro", "Informe o nome do cliente."));
   const c = await prisma.cliente.create({ data: d });
   revalidatePath("/clientes");
+  if (fd.get("proximo") === "contrato") redirect(`/contratos/novo?cliente=${c.id}`);
   redirect(msg(`/clientes/${c.id}`, "ok", "Cliente cadastrado."));
 }
 

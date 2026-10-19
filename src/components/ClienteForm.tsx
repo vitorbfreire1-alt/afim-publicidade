@@ -22,8 +22,13 @@ export default function ClienteForm({ cliente, action, label }: {
         <label className="label" htmlFor="observacoes">Observações</label>
         <textarea className="input" id="observacoes" name="observacoes" rows={3} defaultValue={cliente?.observacoes ?? ""} />
       </div>
-      <div className="sm:col-span-2">
-        <button className="btn btn-gold w-full sm:w-auto" type="submit">{label}</button>
+      <div className="flex flex-col gap-2 sm:col-span-2 sm:flex-row">
+        <button className="btn btn-gold" type="submit">{label}</button>
+        {!cliente && (
+          <button className="btn" type="submit" name="proximo" value="contrato">
+            Cadastrar e criar contrato
+          </button>
+        )}
       </div>
     </form>
   );
