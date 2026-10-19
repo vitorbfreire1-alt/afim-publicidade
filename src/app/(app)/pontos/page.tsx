@@ -37,21 +37,26 @@ export default async function Pontos({ searchParams }: { searchParams: Promise<{
       <div className="card table-wrap">
         <table className="table">
           <thead>
-            <tr><th>Ponto</th><th>Endereço</th><th>Situação</th></tr>
+            <tr><th>Ponto</th><th>Endereço</th><th>Clientes ativos</th></tr>
           </thead>
           <tbody>
             {pontos.length === 0 && <tr><td colSpan={3} className="text-ink-soft">Nenhum ponto cadastrado.</td></tr>}
             {pontos.map((p) => {
-              const locacao = p.contratos[0]?.contrato;
               return (
                 <tr key={p.id} className={p.ativo ? "" : "opacity-50"}>
                   <td><Link className="font-medium hover:text-gold" href={`/pontos/${p.id}`}>{p.nome}</Link></td>
                   <td>{p.endereco ?? "—"}</td>
                   <td>
-                    {!p.ativo ? "Desativado" : locacao ? (
-                      <Link className="text-warn" href={`/contratos/${locacao.id}`}>Locado · {locacao.cliente.nome}</Link>
+                    {!p.ativo ? "Desativado" : p.contratos.length === 0 ? (
+                      <span className="text-good">Sem clientes</span>
                     ) : (
-                      <span className="text-good">Livre</span>
+                      <ul className="space-y-0.5">
+                        {p.contratos.map(({ contrato: c }) => (
+                          <li key={c.id}>
+                            <Link className="text-warn hover:underline" href={`/contratos/${c.id}`}>{c.cliente.nome}</Link>
+                          </li>
+                        ))}
+                      </ul>
                     )}
                   </td>
                 </tr>

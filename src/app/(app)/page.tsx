@@ -32,7 +32,7 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
         <Kpi label="Inadimplência" value={money(r.inadimplencia)} sub={`${r.parcelasEmAtraso} parcela(s) em atraso`} tom={r.inadimplencia > 0 ? "danger" : "good"} />
         <Kpi label="Recebido no mês" value={money(r.recebidoMes)} sub={`Previsto: ${money(r.previstoMes)}`} />
         <Kpi label="Contratos ativos" value={String(r.contratosAtivos)} />
-        <Kpi label="Ocupação dos pontos" value={`${ocupacao}%`} sub={`${r.pontosOcupados} de ${r.pontosTotal} locados`} />
+        <Kpi label="Pontos com clientes" value={`${ocupacao}%`} sub={`${r.pontosOcupados} de ${r.pontosTotal} pontos com contrato ativo`} />
       </section>
 
       <section className="mt-6 grid gap-4 lg:grid-cols-2">

@@ -33,17 +33,12 @@ export async function criarContrato(fd: FormData) {
     volta("O dia de vencimento deve ser de 1 a 28.");
   }
 
-  const [cliente, pontos, ocupados] = await Promise.all([
+  const [cliente, pontos] = await Promise.all([
     prisma.cliente.findUnique({ where: { id: clienteId } }),
     prisma.ponto.findMany({ where: { id: { in: pontoIds }, ativo: true } }),
-    prisma.contratoPonto.findMany({
-      where: { pontoId: { in: pontoIds }, contrato: { status: "ATIVO" } },
-      include: { ponto: true },
-    }),
   ]);
   if (!cliente?.ativo) volta("Cliente inválido ou desativado.");
   if (pontos.length !== pontoIds.length) volta("Algum ponto escolhido não existe ou está desativado.");
-  if (ocupados.length) volta(`Ponto já locado em outro contrato ativo: ${ocupados.map((o) => o.ponto.nome).join(", ")}.`);
 
   const contrato = await prisma.contrato.create({
     data: {
@@ -65,14 +60,6 @@ export async function criarContrato(fd: FormData) {
 
 export async function mudarStatusContrato(id: string, status: "ATIVO" | "ENCERRADO" | "CANCELADO") {
   await requireUser("COMERCIAL");
-
-  if (status === "ATIVO") {
-    const c = await prisma.contrato.findUniqueOrThrow({ where: { id }, include: { pontos: true } });
-    const conflito = await prisma.contratoPonto.count({
-      where: { pontoId: { in: c.pontos.map((p) => p.pontoId) }, contrato: { status: "ATIVO", id: { not: id } } },
-    });
-    if (conflito) redirect(msg(`/contratos/${id}`, "erro", "Um dos pontos já está em outro contrato ativo."));
-  }
 
   await prisma.contrato.update({ where: { id }, data: { status } });
   revalidatePath("/", "layout");

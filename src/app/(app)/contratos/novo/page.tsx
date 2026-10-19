@@ -11,11 +11,12 @@ export const metadata = { title: "Novo contrato" };
 
 export default async function NovoContrato({ searchParams }: { searchParams: Promise<{ erro?: string; cliente?: string }> }) {
   const [, { erro, cliente }] = await Promise.all([requireUser("COMERCIAL"), searchParams]);
-  const [clientes, livres] = await Promise.all([
+  const [clientes, pontos] = await Promise.all([
     prisma.cliente.findMany({ where: { ativo: true }, orderBy: { nome: "asc" } }),
     prisma.ponto.findMany({
-      where: { ativo: true, contratos: { none: { contrato: { status: "ATIVO" } } } },
+      where: { ativo: true },
       orderBy: { nome: "asc" },
+      include: { _count: { select: { contratos: { where: { contrato: { status: "ATIVO" } } } } } },
     }),
   ]);
 
@@ -33,10 +34,10 @@ export default async function NovoContrato({ searchParams }: { searchParams: Pro
         </div>
 
         <fieldset className="sm:col-span-2">
-          <legend className="label">Pontos locados (só aparecem os livres)</legend>
-          {livres.length === 0 && <p className="text-sm text-ink-soft">Nenhum ponto livre. Cadastre ou libere um ponto.</p>}
+          <legend className="label">Pontos do contrato (um ponto pode ter vários clientes)</legend>
+          {pontos.length === 0 && <p className="text-sm text-ink-soft">Nenhum ponto cadastrado. Cadastre em Pontos → Novo ponto.</p>}
           {TIPOS.map((t) => {
-            const doTipo = livres.filter((p) => p.tipo === t);
+            const doTipo = pontos.filter((p) => p.tipo === t);
             if (!doTipo.length) return null;
             return (
               <div key={t} className="mb-2">
@@ -45,6 +46,9 @@ export default async function NovoContrato({ searchParams }: { searchParams: Pro
                   <label key={p.id} className="flex min-h-10 items-center gap-2 text-sm">
                     <input type="checkbox" name="pontoIds" value={p.id} className="size-4 accent-[#d4a62a]" />
                     {p.nome}
+                    {p._count.contratos > 0 && (
+                      <span className="text-xs text-ink-faint">({p._count.contratos} cliente(s) ativo(s))</span>
+                    )}
                   </label>
                 ))}
               </div>

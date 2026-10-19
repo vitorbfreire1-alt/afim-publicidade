@@ -5,7 +5,7 @@ Sistema web (funciona no computador e no celular) para a locação de painéis d
 ## O que faz
 
 - **Carteira** — uma aba por tipo de mídia (LED, totens, triedros, outdoors) com as mesmas colunas da planilha: cliente, ponto, valor, forma de pagamento, prazo, dia de vencimento, recebimento e inadimplência acumulada (esta última é calculada, não digitada).
-- **Clientes e pontos** — cadastro, busca e histórico de contratos. Um contrato pode ter vários pontos; um ponto só pode estar em um contrato ativo por vez.
+- **Clientes e pontos** — cadastro, busca e histórico de contratos. Um contrato pode ter vários pontos, e um mesmo ponto pode ter vários clientes ao mesmo tempo.
 - **Contratos** — ao criar, o sistema gera as parcelas mensais conforme prazo e dia de vencimento.
 - **Financeiro** — registrar recebimento (data, valor, forma), desfazer, ver o que está em atraso, a vencer e recebido.
 - **Painel com alertas** — inadimplência, recebido x previsto do mês, ocupação dos pontos, parcelas em atraso, vencimentos dos próximos 7 dias e contratos terminando em 60 dias.
