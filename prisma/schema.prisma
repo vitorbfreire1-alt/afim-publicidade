@@ -76,11 +76,9 @@ model Contrato {
   numero         Int             @unique @default(autoincrement())
   clienteId      String
   cliente        Cliente         @relation(fields: [clienteId], references: [id], onDelete: Restrict)
-  // Valor cobrado por mês (todos os pontos do contrato somados).
-  valorMensal    Decimal         @db.Decimal(12, 2)
   formaPagamento FormaPagamento  @default(PIX)
+  // Derivados dos pontos: menor início e maior fim (cada ponto tem o seu prazo e valor).
   inicio         DateTime        @db.Date
-  prazoMeses     Int
   fim            DateTime        @db.Date
   diaVencimento  Int // 1 a 28
   status         StatusContrato  @default(ATIVO)
@@ -93,11 +91,16 @@ model Contrato {
   @@index([status, fim])
 }
 
+// Cada ponto do contrato tem valor mensal, início e prazo próprios; a cobrança do mês é a soma dos pontos vigentes.
 model ContratoPonto {
   contratoId String
   contrato   Contrato @relation(fields: [contratoId], references: [id], onDelete: Cascade)
   pontoId    String
   ponto      Ponto    @relation(fields: [pontoId], references: [id], onDelete: Restrict)
+  valor      Decimal  @db.Decimal(12, 2)
+  inicio     DateTime @db.Date
+  prazoMeses Int
+  fim        DateTime @db.Date
 
   @@id([contratoId, pontoId])
   @@index([pontoId])

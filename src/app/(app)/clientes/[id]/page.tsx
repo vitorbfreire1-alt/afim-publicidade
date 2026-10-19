@@ -4,7 +4,7 @@ import Flash from "@/components/Flash";
 import ClienteForm from "@/components/ClienteForm";
 import { alternarCliente, atualizarCliente } from "@/app/actions/clientes";
 import { podeEditarCadastros, requireUser } from "@/lib/auth";
-import { filtroEmAtraso } from "@/lib/financeiro";
+import { filtroEmAtraso, valorMensalAtual } from "@/lib/financeiro";
 import { dateBR, money } from "@/lib/format";
 import { STATUS_CONTRATO_LABEL } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
@@ -63,7 +63,7 @@ export default async function ClientePage({ params, searchParams }: {
               <tr key={c.id}>
                 <td><Link className="font-medium text-gold" href={`/contratos/${c.id}`}>#{c.numero}</Link></td>
                 <td>{c.pontos.map((p) => p.ponto.nome).join(", ")}</td>
-                <td>{money(c.valorMensal)}</td>
+                <td>{money(valorMensalAtual(c.pontos))}</td>
                 <td className="whitespace-nowrap">{dateBR(c.inicio)} – {dateBR(c.fim)}</td>
                 <td>{STATUS_CONTRATO_LABEL[c.status]}</td>
               </tr>

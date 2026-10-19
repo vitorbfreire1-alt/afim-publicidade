@@ -25,6 +25,46 @@ export function gerarParcelas(inicio: Date, prazoMeses: number, diaVencimento: n
   }));
 }
 
+const chaveData = (d: Date) => d.toISOString().slice(0, 10);
+
+/**
+ * Cobrança mensal do contrato: cada ponto gera suas parcelas (valor/início/prazo próprios) e as do mesmo
+ * vencimento são somadas em uma só. Valores em centavos para não acumular erro de ponto flutuante.
+ */
+export function agregarParcelas(pontos: { valor: number; inicio: Date; prazoMeses: number }[], diaVencimento: number) {
+  const porData = new Map<string, { vencimento: Date; centavos: number }>();
+  for (const p of pontos) {
+    for (const x of gerarParcelas(p.inicio, p.prazoMeses, diaVencimento, p.valor)) {
+      const k = chaveData(x.vencimento);
+      const atual = porData.get(k) ?? { vencimento: x.vencimento, centavos: 0 };
+      atual.centavos += Math.round(x.valor * 100);
+      porData.set(k, atual);
+    }
+  }
+  return [...porData.values()]
+    .sort((a, b) => a.vencimento.getTime() - b.vencimento.getTime())
+    .map((x, i) => ({ numero: i + 1, vencimento: x.vencimento, valor: x.centavos / 100 }));
+}
+
+interface PontoDoContrato {
+  valor: unknown;
+  inicio: Date;
+  prazoMeses: number;
+  fim: Date;
+}
+
+/** Valor mensal hoje: soma dos pontos vigentes; sem nenhum vigente (futuro/encerrado), a soma de todos. */
+export function valorMensalAtual(pontos: PontoDoContrato[], ref = hoje()): number {
+  const vigentes = pontos.filter((p) => p.inicio <= ref && ref <= p.fim);
+  return (vigentes.length ? vigentes : pontos).reduce((s, p) => s + Number(p.valor), 0);
+}
+
+/** Quanto das parcelas em atraso (datas de vencimento) pertence a este ponto. */
+export function atrasoDoPonto(p: PontoDoContrato, diaVencimento: number, vencimentosEmAtraso: Date[]): number {
+  const meus = new Set(gerarParcelas(p.inicio, p.prazoMeses, diaVencimento, 0).map((x) => chaveData(x.vencimento)));
+  return vencimentosEmAtraso.filter((v) => meus.has(chaveData(v))).length * Number(p.valor);
+}
+
 /** Parcelas de contratos ativos vencidas e não pagas. */
 export const filtroEmAtraso = () => ({
   pagoEm: null,
@@ -85,9 +125,9 @@ export async function alertas() {
       orderBy: { vencimento: "asc" },
       take: 15,
     }),
-    prisma.contrato.findMany({
-      where: { status: "ATIVO", fim: { gte: h, lte: addDias(h, 60) } },
-      include: { cliente: true, pontos: { include: { ponto: true } } },
+    prisma.contratoPonto.findMany({
+      where: { contrato: { status: "ATIVO" }, fim: { gte: h, lte: addDias(h, 60) } },
+      include: { ponto: true, contrato: { include: { cliente: true } } },
       orderBy: { fim: "asc" },
       take: 15,
     }),

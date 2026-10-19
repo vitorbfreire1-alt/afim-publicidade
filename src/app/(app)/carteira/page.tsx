@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { podeEditarCadastros, requireUser } from "@/lib/auth";
-import { statusParcela } from "@/lib/financeiro";
+import { atrasoDoPonto, statusParcela } from "@/lib/financeiro";
 import { dateBR, hoje, money } from "@/lib/format";
 import { FORMA_LABEL, TIPOS, TIPO_LABEL, isTipo } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
@@ -8,23 +8,23 @@ import { prisma } from "@/lib/prisma";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Carteira de clientes" };
 
-/** Reproduz as abas da planilha: uma carteira por tipo de mídia, com as mesmas colunas. */
+/** Reproduz as abas da planilha: uma carteira por tipo de mídia; cada linha é um ponto de um contrato. */
 export default async function Carteira({ searchParams }: { searchParams: Promise<{ tipo?: string }> }) {
   const [user, sp] = await Promise.all([requireUser(), searchParams]);
   const tipo = isTipo(sp.tipo) ? sp.tipo : "LED";
   const h = hoje();
 
-  const contratos = await prisma.contrato.findMany({
-    where: { status: "ATIVO", pontos: { some: { ponto: { tipo } } } },
-    orderBy: { numero: "asc" },
+  const itens = await prisma.contratoPonto.findMany({
+    where: { ponto: { tipo }, contrato: { status: "ATIVO" } },
+    orderBy: [{ contrato: { numero: "asc" } }, { ponto: { nome: "asc" } }],
     include: {
-      cliente: true,
-      pontos: { include: { ponto: true } },
-      parcelas: { orderBy: { numero: "asc" } },
+      ponto: true,
+      contrato: { include: { cliente: true, parcelas: { orderBy: { numero: "asc" } } } },
     },
   });
 
-  const linhas = contratos.map((c) => {
+  const linhas = itens.map((cp) => {
+    const c = cp.contrato;
     const abertas = c.parcelas.filter((p) => !p.pagoEm);
     const atrasadas = abertas.filter((p) => statusParcela(p, h) === "ATRASADA");
     const proxima = abertas.find((p) => p.vencimento >= h);
@@ -34,12 +34,14 @@ export default async function Carteira({ searchParams }: { searchParams: Promise
         ? { texto: `Em dia · próx. ${dateBR(proxima.vencimento)}`, cor: "text-good" }
         : { texto: "Quitado", cor: "text-good" };
     return {
-      c,
+      cp,
       recebimento,
-      inadimplencia: atrasadas.reduce((s, p) => s + Number(p.valor), 0),
+      // Só a parte deste ponto nas parcelas em atraso do contrato.
+      inadimplencia: atrasoDoPonto(cp, c.diaVencimento, atrasadas.map((p) => p.vencimento)),
+      vigente: cp.inicio <= h && h <= cp.fim,
     };
   });
-  const totalMensal = contratos.reduce((s, c) => s + Number(c.valorMensal), 0);
+  const totalMensal = linhas.filter((l) => l.vigente).reduce((s, l) => s + Number(l.cp.valor), 0);
   const totalInad = linhas.reduce((s, l) => s + l.inadimplencia, 0);
 
   return (
@@ -63,20 +65,20 @@ export default async function Carteira({ searchParams }: { searchParams: Promise
           <thead>
             <tr>
               <th>Nº</th><th>Cliente / Empresa</th><th>Ponto</th><th>Valor mensal</th><th>Forma de pagamento</th>
-              <th>Prazo do contrato</th><th>Dia venc.</th><th>Recebimento</th><th>Inadimplência acumulada</th>
+              <th>Prazo do ponto</th><th>Dia venc.</th><th>Recebimento</th><th>Inadimplência acumulada</th>
             </tr>
           </thead>
           <tbody>
             {linhas.length === 0 && <tr><td colSpan={9} className="text-ink-soft">Nenhum contrato ativo nesta carteira.</td></tr>}
-            {linhas.map(({ c, recebimento, inadimplencia }) => (
-              <tr key={c.id}>
-                <td><Link className="font-medium text-gold" href={`/contratos/${c.id}`}>{c.numero}</Link></td>
-                <td>{c.cliente.nome}</td>
-                <td>{c.pontos.filter((p) => p.ponto.tipo === tipo).map((p) => p.ponto.nome).join(", ")}</td>
-                <td className="whitespace-nowrap">{money(c.valorMensal)}</td>
-                <td>{FORMA_LABEL[c.formaPagamento]}</td>
-                <td className="whitespace-nowrap">{dateBR(c.inicio)} – {dateBR(c.fim)}</td>
-                <td>{c.diaVencimento}</td>
+            {linhas.map(({ cp, recebimento, inadimplencia }) => (
+              <tr key={`${cp.contratoId}-${cp.pontoId}`}>
+                <td><Link className="font-medium text-gold" href={`/contratos/${cp.contratoId}`}>{cp.contrato.numero}</Link></td>
+                <td>{cp.contrato.cliente.nome}</td>
+                <td>{cp.ponto.nome}</td>
+                <td className="whitespace-nowrap">{money(cp.valor)}</td>
+                <td>{FORMA_LABEL[cp.contrato.formaPagamento]}</td>
+                <td className="whitespace-nowrap">{dateBR(cp.inicio)} – {dateBR(cp.fim)}</td>
+                <td>{cp.contrato.diaVencimento}</td>
                 <td className={`whitespace-nowrap ${recebimento.cor}`}>{recebimento.texto}</td>
                 <td className={inadimplencia ? "font-semibold text-danger" : ""}>{money(inadimplencia)}</td>
               </tr>
@@ -95,7 +97,7 @@ export default async function Carteira({ searchParams }: { searchParams: Promise
         </table>
       </div>
       <p className="mt-2 text-xs text-ink-faint">
-        Contratos com pontos de mais de um tipo aparecem em cada carteira correspondente (o valor mensal é o do contrato inteiro).
+        Cada linha é um ponto de um contrato, com o valor e o prazo daquele ponto. O total soma só os pontos vigentes hoje.
       </p>
     </main>
   );

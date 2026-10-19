@@ -79,16 +79,16 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
         </div>
 
         <div className="card p-4 lg:col-span-2">
-          <h2 className="mb-3 font-semibold text-gold">Contratos terminando em até 60 dias</h2>
+          <h2 className="mb-3 font-semibold text-gold">Pontos com prazo terminando em até 60 dias</h2>
           {a.terminando.length === 0 ? (
-            <p className="text-sm text-ink-soft">Nenhum contrato perto do fim.</p>
+            <p className="text-sm text-ink-soft">Nenhum ponto perto do fim do prazo.</p>
           ) : (
             <ul className="divide-y divide-line text-sm">
               {a.terminando.map((c) => (
-                <li key={c.id} className="flex items-center justify-between gap-3 py-2">
-                  <Link href={`/contratos/${c.id}`} className="min-w-0 hover:text-gold">
-                    <span className="block truncate font-medium">{c.cliente.nome}</span>
-                    <span className="text-xs text-ink-soft">{c.pontos.map((p) => p.ponto.nome).join(", ")}</span>
+                <li key={`${c.contratoId}-${c.pontoId}`} className="flex items-center justify-between gap-3 py-2">
+                  <Link href={`/contratos/${c.contratoId}`} className="min-w-0 hover:text-gold">
+                    <span className="block truncate font-medium">{c.contrato.cliente.nome}</span>
+                    <span className="text-xs text-ink-soft">{c.ponto.nome}</span>
                   </Link>
                   <span className="shrink-0 text-right">
                     <span className="block font-semibold">{dateBR(c.fim)}</span>

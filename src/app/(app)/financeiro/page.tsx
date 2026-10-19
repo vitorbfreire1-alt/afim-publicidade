@@ -32,7 +32,7 @@ export default async function Financeiro({ searchParams }: { searchParams: Promi
     where,
     orderBy: { [f === "pagas" ? "pagoEm" : "vencimento"]: f === "pagas" ? "desc" : "asc" },
     take: 200,
-    include: { contrato: { include: { cliente: true } } },
+    include: { contrato: { include: { cliente: true, _count: { select: { parcelas: true } } } } },
   });
   const total = parcelas.reduce((s, p) => s + Number(f === "pagas" ? p.valorPago : p.valor), 0);
   const volta = `/financeiro?f=${f}`;
@@ -60,7 +60,7 @@ export default async function Financeiro({ searchParams }: { searchParams: Promi
               <tr key={p.id}>
                 <td className="font-medium">{p.contrato.cliente.nome}</td>
                 <td><Link className="text-gold" href={`/contratos/${p.contratoId}`}>#{p.contrato.numero}</Link></td>
-                <td>{p.numero}/{p.contrato.prazoMeses}</td>
+                <td>{p.numero}/{p.contrato._count.parcelas}</td>
                 <td>{dateBR(f === "pagas" ? p.pagoEm : p.vencimento)}</td>
                 <td>{money(f === "pagas" ? p.valorPago : p.valor)}</td>
                 <td><StatusBadge status={statusParcela(p, h)} /></td>

@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import type { FormaPagamento } from "@prisma/client";
 import { msg } from "@/components/Flash";
 import { requireUser } from "@/lib/auth";
-import { calcularFim, gerarParcelas } from "@/lib/financeiro";
+import { agregarParcelas, calcularFim } from "@/lib/financeiro";
 import { data, inteiro, texto } from "@/lib/form";
 import { parseMoney } from "@/lib/format";
 import { FORMAS } from "@/lib/labels";
@@ -17,20 +17,29 @@ export async function criarContrato(fd: FormData) {
 
   const clienteId = String(fd.get("clienteId") ?? "");
   const pontoIds = [...new Set(fd.getAll("pontoIds").map(String))];
-  const valorMensal = parseMoney(fd.get("valorMensal"));
   const forma = String(fd.get("formaPagamento") ?? "") as FormaPagamento;
-  const inicio = data(fd, "inicio");
-  const prazoMeses = inteiro(fd, "prazoMeses");
   const diaVencimento = inteiro(fd, "diaVencimento");
 
   if (!clienteId) volta("Escolha o cliente.");
   if (!pontoIds.length) volta("Escolha ao menos um ponto.");
-  if (!(valorMensal > 0)) volta("Informe um valor mensal válido.");
   if (!FORMAS.includes(forma)) volta("Escolha a forma de pagamento.");
-  if (!inicio) volta("Informe a data de início.");
-  if (!Number.isInteger(prazoMeses) || prazoMeses < 1 || prazoMeses > 120) volta("Prazo deve ser de 1 a 120 meses.");
   if (!Number.isInteger(diaVencimento) || diaVencimento < 1 || diaVencimento > 28) {
     volta("O dia de vencimento deve ser de 1 a 28.");
+  }
+
+  // Cada ponto traz o seu valor mensal, início e prazo.
+  const itens = pontoIds.map((pontoId) => ({
+    pontoId,
+    valor: parseMoney(fd.get(`valor_${pontoId}`)),
+    inicio: data(fd, `inicio_${pontoId}`),
+    prazoMeses: inteiro(fd, `prazo_${pontoId}`),
+  }));
+  for (const it of itens) {
+    if (!(it.valor > 0)) volta("Informe o valor mensal de cada ponto escolhido.");
+    if (!it.inicio) volta("Informe a data de início de cada ponto escolhido.");
+    if (!Number.isInteger(it.prazoMeses) || it.prazoMeses < 1 || it.prazoMeses > 120) {
+      volta("O prazo de cada ponto deve ser de 1 a 120 meses.");
+    }
   }
 
   const [cliente, pontos] = await Promise.all([
@@ -40,18 +49,25 @@ export async function criarContrato(fd: FormData) {
   if (!cliente?.ativo) volta("Cliente inválido ou desativado.");
   if (pontos.length !== pontoIds.length) volta("Algum ponto escolhido não existe ou está desativado.");
 
+  const comFim = itens.map((it) => ({
+    pontoId: it.pontoId,
+    valor: it.valor,
+    inicio: it.inicio!,
+    prazoMeses: it.prazoMeses,
+    fim: calcularFim(it.inicio!, it.prazoMeses),
+  }));
+  const time = (d: Date) => d.getTime();
+
   const contrato = await prisma.contrato.create({
     data: {
       clienteId,
-      valorMensal,
       formaPagamento: forma,
-      inicio: inicio!,
-      prazoMeses,
-      fim: calcularFim(inicio!, prazoMeses),
       diaVencimento,
+      inicio: new Date(Math.min(...comFim.map((i) => time(i.inicio)))),
+      fim: new Date(Math.max(...comFim.map((i) => time(i.fim)))),
       observacoes: texto(fd, "observacoes"),
-      pontos: { create: pontoIds.map((pontoId) => ({ pontoId })) },
-      parcelas: { create: gerarParcelas(inicio!, prazoMeses, diaVencimento, valorMensal) },
+      pontos: { create: comFim },
+      parcelas: { create: agregarParcelas(comFim, diaVencimento) },
     },
   });
   revalidatePath("/", "layout");
@@ -60,7 +76,6 @@ export async function criarContrato(fd: FormData) {
 
 export async function mudarStatusContrato(id: string, status: "ATIVO" | "ENCERRADO" | "CANCELADO") {
   await requireUser("COMERCIAL");
-
   await prisma.contrato.update({ where: { id }, data: { status } });
   revalidatePath("/", "layout");
   redirect(msg(`/contratos/${id}`, "ok", "Status do contrato atualizado."));

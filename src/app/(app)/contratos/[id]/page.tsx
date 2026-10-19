@@ -5,7 +5,7 @@ import ReceberParcela from "@/components/ReceberParcela";
 import StatusBadge from "@/components/StatusBadge";
 import { mudarStatusContrato } from "@/app/actions/contratos";
 import { podeEditarCadastros, podeReceber, requireUser } from "@/lib/auth";
-import { statusParcela } from "@/lib/financeiro";
+import { statusParcela, valorMensalAtual } from "@/lib/financeiro";
 import { dateBR, money } from "@/lib/format";
 import { FORMA_LABEL, STATUS_CONTRATO_LABEL, TIPO_SINGULAR } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
@@ -44,18 +44,35 @@ export default async function ContratoPage({ params, searchParams }: {
       </div>
 
       <section className="card mb-6 grid gap-4 p-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div><p className="label">Valor mensal</p><p className="font-semibold">{money(c.valorMensal)}</p></div>
+        <div><p className="label">Valor mensal hoje</p><p className="font-semibold">{money(valorMensalAtual(c.pontos))}</p></div>
         <div><p className="label">Forma de pagamento</p><p>{FORMA_LABEL[c.formaPagamento]}</p></div>
-        <div><p className="label">Prazo</p><p>{c.prazoMeses} meses · {dateBR(c.inicio)} a {dateBR(c.fim)}</p></div>
+        <div><p className="label">Período</p><p>{dateBR(c.inicio)} a {dateBR(c.fim)}</p></div>
         <div><p className="label">Vencimento</p><p>Todo dia {c.diaVencimento}</p></div>
         <div><p className="label">Recebido</p><p className="text-good">{money(recebido)}</p></div>
         <div><p className="label">Em aberto</p><p>{money(emAberto)}</p></div>
-        <div className="sm:col-span-2">
-          <p className="label">Pontos</p>
-          <p>{c.pontos.map((p) => `${p.ponto.nome} (${TIPO_SINGULAR[p.ponto.tipo]})`).join(" · ")}</p>
-        </div>
         {c.observacoes && <p className="text-sm text-ink-soft sm:col-span-2 lg:col-span-4">{c.observacoes}</p>}
       </section>
+
+      <h2 className="mb-3 font-semibold">Pontos do contrato</h2>
+      <div className="card table-wrap mb-6">
+        <table className="table">
+          <thead>
+            <tr><th>Ponto</th><th>Tipo</th><th>Valor mensal</th><th>Início</th><th>Prazo</th><th>Fim</th></tr>
+          </thead>
+          <tbody>
+            {c.pontos.map((cp) => (
+              <tr key={cp.pontoId}>
+                <td className="font-medium">{cp.ponto.nome}</td>
+                <td>{TIPO_SINGULAR[cp.ponto.tipo]}</td>
+                <td>{money(cp.valor)}</td>
+                <td>{dateBR(cp.inicio)}</td>
+                <td>{cp.prazoMeses} meses</td>
+                <td>{dateBR(cp.fim)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       <h2 className="mb-3 font-semibold">Parcelas</h2>
       <div className="card table-wrap">
@@ -66,7 +83,7 @@ export default async function ContratoPage({ params, searchParams }: {
           <tbody>
             {c.parcelas.map((p) => (
               <tr key={p.id}>
-                <td>{p.numero}/{c.prazoMeses}</td>
+                <td>{p.numero}/{c.parcelas.length}</td>
                 <td>{dateBR(p.vencimento)}</td>
                 <td>{money(p.valor)}</td>
                 <td><StatusBadge status={statusParcela(p)} /></td>

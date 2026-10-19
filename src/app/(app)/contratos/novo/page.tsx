@@ -1,5 +1,5 @@
 import Flash from "@/components/Flash";
-import MaskedInput from "@/components/MaskedInput";
+import PontosDoContrato from "@/components/PontosDoContrato";
 import { criarContrato } from "@/app/actions/contratos";
 import { requireUser } from "@/lib/auth";
 import { isoDate, hoje } from "@/lib/format";
@@ -33,46 +33,21 @@ export default async function NovoContrato({ searchParams }: { searchParams: Pro
           </select>
         </div>
 
-        <fieldset className="sm:col-span-2">
-          <legend className="label">Pontos do contrato (um ponto pode ter vários clientes)</legend>
-          {pontos.length === 0 && <p className="text-sm text-ink-soft">Nenhum ponto cadastrado. Cadastre em Pontos → Novo ponto.</p>}
-          {TIPOS.map((t) => {
-            const doTipo = pontos.filter((p) => p.tipo === t);
-            if (!doTipo.length) return null;
-            return (
-              <div key={t} className="mb-2">
-                <p className="text-xs font-semibold text-gold">{TIPO_LABEL[t]}</p>
-                {doTipo.map((p) => (
-                  <label key={p.id} className="flex min-h-10 items-center gap-2 text-sm">
-                    <input type="checkbox" name="pontoIds" value={p.id} className="size-4 accent-[#d4a62a]" />
-                    {p.nome}
-                    {p._count.contratos > 0 && (
-                      <span className="text-xs text-ink-faint">({p._count.contratos} cliente(s) ativo(s))</span>
-                    )}
-                  </label>
-                ))}
-              </div>
-            );
-          })}
-        </fieldset>
+        <PontosDoContrato
+          hojeISO={isoDate(hoje())}
+          grupos={TIPOS.map((t) => ({
+            titulo: TIPO_LABEL[t],
+            pontos: pontos
+              .filter((p) => p.tipo === t)
+              .map((p) => ({ id: p.id, nome: p.nome, clientesAtivos: p._count.contratos })),
+          })).filter((g) => g.pontos.length > 0)}
+        />
 
-        <div>
-          <label className="label" htmlFor="valorMensal">Valor mensal (R$)</label>
-          <MaskedInput className="input" id="valorMensal" name="valorMensal" mask="dinheiro" placeholder="1.500,00" required />
-        </div>
         <div>
           <label className="label" htmlFor="formaPagamento">Forma de pagamento</label>
           <select className="input" id="formaPagamento" name="formaPagamento" defaultValue="PIX">
             {FORMAS.map((f) => <option key={f} value={f}>{FORMA_LABEL[f]}</option>)}
           </select>
-        </div>
-        <div>
-          <label className="label" htmlFor="inicio">Início do contrato</label>
-          <input className="input" id="inicio" name="inicio" type="date" defaultValue={isoDate(hoje())} required />
-        </div>
-        <div>
-          <label className="label" htmlFor="prazoMeses">Prazo (meses)</label>
-          <input className="input" id="prazoMeses" name="prazoMeses" type="number" min={1} max={120} defaultValue={12} required />
         </div>
         <div>
           <label className="label" htmlFor="diaVencimento">Dia do vencimento (1 a 28)</label>

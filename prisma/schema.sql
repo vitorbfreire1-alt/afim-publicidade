@@ -59,10 +59,8 @@ CREATE TABLE "Contrato" (
     "id" TEXT NOT NULL,
     "numero" SERIAL NOT NULL,
     "clienteId" TEXT NOT NULL,
-    "valorMensal" DECIMAL(12,2) NOT NULL,
     "formaPagamento" "FormaPagamento" NOT NULL DEFAULT 'PIX',
     "inicio" DATE NOT NULL,
-    "prazoMeses" INTEGER NOT NULL,
     "fim" DATE NOT NULL,
     "diaVencimento" INTEGER NOT NULL,
     "status" "StatusContrato" NOT NULL DEFAULT 'ATIVO',
@@ -76,6 +74,10 @@ CREATE TABLE "Contrato" (
 CREATE TABLE "ContratoPonto" (
     "contratoId" TEXT NOT NULL,
     "pontoId" TEXT NOT NULL,
+    "valor" DECIMAL(12,2) NOT NULL,
+    "inicio" DATE NOT NULL,
+    "prazoMeses" INTEGER NOT NULL,
+    "fim" DATE NOT NULL,
 
     CONSTRAINT "ContratoPonto_pkey" PRIMARY KEY ("contratoId","pontoId")
 );
