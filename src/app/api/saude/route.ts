@@ -14,8 +14,10 @@ export async function GET() {
   try {
     await prisma.usuario.count();
   } catch (e) {
-    const code = (e as { code?: string }).code ?? (e as Error).name;
-    banco = `erro ${code}`;
+    const err = e as { code?: string; errorCode?: string; message?: string; name: string };
+    // Sem credenciais: troca qualquer URL de conexão e fica só com o fim da mensagem.
+    const detalhe = (err.message ?? "").replace(/postgres(ql)?:\/\/\S+/g, "[url]").trim().split("\n").slice(-4).join(" ");
+    banco = `erro ${err.errorCode ?? err.code ?? err.name}: ${detalhe}`.slice(0, 500);
   }
 
   return Response.json({ config, banco }, { status: banco === "ok" && Object.values(config).every(Boolean) ? 200 : 500 });
