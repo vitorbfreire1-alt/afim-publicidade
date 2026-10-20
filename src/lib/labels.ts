@@ -1,4 +1,4 @@
-import type { CategoriaDespesa, FormaPagamento, StatusContrato, TipoMidia } from "@prisma/client";
+import type { CategoriaDespesa, CustoItem, FormaPagamento, StatusContrato, TipoMidia } from "@prisma/client";
 
 export const TIPOS: TipoMidia[] = ["LED", "TOTEM", "TRIEDRO", "OUTDOOR"];
 
@@ -35,7 +35,7 @@ export const STATUS_CONTRATO_LABEL: Record<StatusContrato, string> = {
 
 export const isTipo = (v: unknown): v is TipoMidia => TIPOS.includes(v as TipoMidia);
 
-export const CATEGORIAS: CategoriaDespesa[] = ["ENERGIA", "MANUTENCAO", "ALUGUEL_PONTO", "IMPOSTOS", "COMISSOES", "FOLHA", "MARKETING", "OUTROS"];
+export const CATEGORIAS: CategoriaDespesa[] = ["ENERGIA", "MANUTENCAO", "ALUGUEL_PONTO", "IMPOSTOS", "COMISSOES", "FOLHA", "MARKETING", "PRODUCAO", "OUTROS"];
 
 export const CATEGORIA_LABEL: Record<CategoriaDespesa, string> = {
   ENERGIA: "Energia",
@@ -45,5 +45,19 @@ export const CATEGORIA_LABEL: Record<CategoriaDespesa, string> = {
   COMISSOES: "Comissões",
   FOLHA: "Folha / equipe",
   MARKETING: "Marketing",
+  PRODUCAO: "Produção / montagem",
   OUTROS: "Outros",
 };
+
+export const CUSTO_ITENS: CustoItem[] = ["IMPRESSAO", "LONA", "COLAGEM", "MONTAGEM", "RASPAGEM"];
+
+export const CUSTO_LABEL: Record<CustoItem, string> = {
+  IMPRESSAO: "Impressão",
+  LONA: "Lona",
+  COLAGEM: "Colagem da impressão",
+  MONTAGEM: "Montagem da lona",
+  RASPAGEM: "Raspagem / papel",
+};
+
+/** Itens cobrados a cada troca de arte (os demais são da instalação). */
+export const CUSTO_TROCA: CustoItem[] = ["IMPRESSAO", "COLAGEM", "RASPAGEM"];

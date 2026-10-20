@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { msg } from "@/components/Flash";
 import { registrar } from "@/lib/audit";
 import { requireUser } from "@/lib/auth";
-import { texto } from "@/lib/form";
+import { normalizarFormato, texto } from "@/lib/form";
 import { isTipo } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
 
@@ -27,6 +27,7 @@ function dados(fd: FormData) {
     larguraM: decimal(fd, "larguraM"),
     alturaM: decimal(fd, "alturaM"),
     resolucao: texto(fd, "resolucao"),
+    formato: texto(fd, "formato") ? normalizarFormato(texto(fd, "formato")!) : null,
     proprietario: texto(fd, "proprietario"),
     proprietarioContato: texto(fd, "proprietarioContato"),
     cotas: cotas !== null && Number.isInteger(cotas) && cotas >= 1 && cotas <= 1000 ? cotas : null,

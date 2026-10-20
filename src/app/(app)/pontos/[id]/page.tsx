@@ -4,10 +4,11 @@ import { MapPin, Wrench } from "lucide-react";
 import Anexos from "@/components/Anexos";
 import Flash from "@/components/Flash";
 import PontoForm from "@/components/PontoForm";
+import { lancarCustosPonto } from "@/app/actions/custos";
 import { alternarPonto, atualizarPonto } from "@/app/actions/pontos";
 import { pode, requireUser } from "@/lib/auth";
 import { dateBR, hoje, money } from "@/lib/format";
-import { STATUS_CONTRATO_LABEL, TIPO_SINGULAR } from "@/lib/labels";
+import { CUSTO_ITENS, CUSTO_LABEL, CUSTO_TROCA, STATUS_CONTRATO_LABEL, TIPO_SINGULAR } from "@/lib/labels";
 import { lucroPorPonto, ultimosMeses } from "@/lib/lucro";
 import { prisma } from "@/lib/prisma";
 
@@ -30,6 +31,9 @@ export default async function PontoPage({ params, searchParams }: {
   if (!ponto) notFound();
 
   const edita = pode(user, "editar");
+  const custos = ponto.tipo === "OUTDOOR" && ponto.formato && pode(user, "despesas")
+    ? await prisma.custoOutdoor.findMany({ where: { formato: ponto.formato } })
+    : [];
   const v = pode(user, "valores");
   const verContratos = pode(user, "carteira");
   const h = hoje();
@@ -50,6 +54,7 @@ export default async function PontoPage({ params, searchParams }: {
           <p className="text-sm text-ink-soft">
             {TIPO_SINGULAR[ponto.tipo]}
             {ponto.larguraM != null && ponto.alturaM != null && ` · ${Number(ponto.larguraM)} × ${Number(ponto.alturaM)} m`}
+            {ponto.formato && ` · formato ${ponto.formato}`}
             {ponto.resolucao && ` · ${ponto.resolucao}`}
             {` · ${ativos}${ponto.cotas ? `/${ponto.cotas}` : ""} cliente(s) hoje`}
           </p>
@@ -124,6 +129,28 @@ export default async function PontoPage({ params, searchParams }: {
           )}
         </div>
       </section>
+
+      {custos.length > 0 && (
+        <section>
+          <h2 className="mb-3 text-sm font-semibold text-gold-soft">Custos de produção ({ponto.formato})</h2>
+          <form action={lancarCustosPonto.bind(null, id)} className="card grid gap-4 p-4 sm:grid-cols-2">
+            <fieldset className="space-y-2 sm:col-span-2">
+              <legend className="label">Serviços a lançar como despesa</legend>
+              {CUSTO_ITENS.filter((i) => custos.some((c) => c.item === i)).map((i) => (
+                <label key={i} className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" name={`item_${i}`} defaultChecked={CUSTO_TROCA.includes(i)} />
+                  {CUSTO_LABEL[i]} <span className="text-ink-soft">· {money(custos.find((c) => c.item === i)!.valor)}</span>
+                </label>
+              ))}
+              <p className="text-xs text-ink-faint">Por padrão vêm marcados os serviços de cada troca de arte (impressão, colagem e raspagem). Lona e montagem: marque só na instalação.</p>
+            </fieldset>
+            <div><label className="label" htmlFor="vencimento">Data</label><input className="input" id="vencimento" name="vencimento" type="date" defaultValue={h.toISOString().slice(0, 10)} required /></div>
+            <div><label className="label" htmlFor="fornecedor">Fornecedor (opcional)</label><input className="input" id="fornecedor" name="fornecedor" /></div>
+            <div className="sm:col-span-2"><label className="label" htmlFor="motivo">Motivo (opcional)</label><input className="input" id="motivo" name="motivo" placeholder="Ex.: troca de arte – cliente X" /></div>
+            <div className="sm:col-span-2"><button className="btn btn-gold" type="submit">Lançar custos</button></div>
+          </form>
+        </section>
+      )}
 
       <Anexos titulo="Fotos do ponto" onde={{ pontoId: id, categoria: { in: ["FOTO_PONTO", "OUTRO"] } }} dono={{ pontoId: id }} categorias={["FOTO_PONTO", "OUTRO"]} volta={`/pontos/${id}`} podeEditar={edita} />
 

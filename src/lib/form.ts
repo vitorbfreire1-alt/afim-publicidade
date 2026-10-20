@@ -13,3 +13,6 @@ export function data(fd: FormData, key: string): Date | null {
   const d = new Date(`${v}T00:00:00Z`);
   return Number.isNaN(d.getTime()) ? null : d;
 }
+
+/** "9 X 3" → "9x3" */
+export const normalizarFormato = (v: string) => v.toLowerCase().replace(/\s+/g, "").replace(/[×*]/g, "x");

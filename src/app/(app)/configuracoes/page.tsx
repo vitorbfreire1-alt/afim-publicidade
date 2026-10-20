@@ -1,8 +1,11 @@
 import Flash from "@/components/Flash";
 import MaskedInput from "@/components/MaskedInput";
 import { salvarConfig } from "@/app/actions/config";
+import { salvarCustos } from "@/app/actions/custos";
 import { requireUser } from "@/lib/auth";
 import { getConfig } from "@/lib/config";
+import { CUSTO_ITENS, CUSTO_LABEL } from "@/lib/labels";
+import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Configurações" };
@@ -10,6 +13,9 @@ export const metadata = { title: "Configurações" };
 export default async function Configuracoes({ searchParams }: { searchParams: Promise<{ erro?: string; ok?: string }> }) {
   const [, sp] = await Promise.all([requireUser("DONO"), searchParams]);
   const c = await getConfig();
+  const custos = await prisma.custoOutdoor.findMany();
+  const formatos = [...new Set(custos.map((x) => x.formato))].sort((a, b) => parseFloat(a) * 10 + parseFloat(a.split("x")[1]) - (parseFloat(b) * 10 + parseFloat(b.split("x")[1])));
+  const valorDe = (f: string, i: string) => custos.find((x) => x.formato === f && x.item === i)?.valor;
   const campo = (name: keyof typeof c, titulo: string, extra: React.InputHTMLAttributes<HTMLInputElement> = {}) => (
     <div>
       <label className="label" htmlFor={name}>{titulo}</label>
@@ -61,6 +67,37 @@ export default async function Configuracoes({ searchParams }: { searchParams: Pr
         </section>
 
         <button className="btn btn-gold" type="submit">Salvar configurações</button>
+      </form>
+
+      <form action={salvarCustos} className="card mt-8 space-y-4 p-5">
+        <div>
+          <h2 className="text-sm font-semibold text-gold-soft">Custos do outdoor por formato</h2>
+          <p className="mt-1 text-xs text-ink-soft">Deixe em branco o serviço que não se aplica ao formato. Esses valores são usados para lançar as despesas de cada ponto de outdoor.</p>
+        </div>
+        <div className="table-wrap">
+          <table className="table">
+            <thead>
+              <tr><th>Serviço</th>{formatos.map((f) => <th key={f}>{f}</th>)}<th>Novo formato</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td className="text-xs text-ink-faint">Formato</td>
+                {formatos.map((f) => <td key={f} />)}
+                <td><input className="input !py-1" name="novoFormato" placeholder="Ex.: 6x3" aria-label="Novo formato" /></td>
+              </tr>
+              {CUSTO_ITENS.map((i) => (
+                <tr key={i}>
+                  <td className="font-medium">{CUSTO_LABEL[i]}</td>
+                  {formatos.map((f) => (
+                    <td key={f}><input className="input !py-1" name={`v|${f}|${i}`} inputMode="decimal" aria-label={`${CUSTO_LABEL[i]} ${f}`} defaultValue={valorDe(f, i) != null ? Number(valorDe(f, i)).toFixed(2).replace(".", ",") : ""} /></td>
+                  ))}
+                  <td><input className="input !py-1" name={`v|__novo|${i}`} inputMode="decimal" aria-label={`${CUSTO_LABEL[i]} novo formato`} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <button className="btn btn-gold" type="submit">Salvar tabela de custos</button>
       </form>
     </main>
   );

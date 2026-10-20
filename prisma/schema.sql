@@ -11,7 +11,10 @@ CREATE TYPE "TipoMidia" AS ENUM ('LED', 'TOTEM', 'TRIEDRO', 'OUTDOOR');
 CREATE TYPE "StatusContrato" AS ENUM ('ATIVO', 'ENCERRADO', 'CANCELADO');
 
 -- CreateEnum
-CREATE TYPE "CategoriaDespesa" AS ENUM ('ENERGIA', 'MANUTENCAO', 'ALUGUEL_PONTO', 'IMPOSTOS', 'COMISSOES', 'FOLHA', 'MARKETING', 'OUTROS');
+CREATE TYPE "CategoriaDespesa" AS ENUM ('ENERGIA', 'MANUTENCAO', 'ALUGUEL_PONTO', 'IMPOSTOS', 'COMISSOES', 'FOLHA', 'MARKETING', 'PRODUCAO', 'OUTROS');
+
+-- CreateEnum
+CREATE TYPE "CustoItem" AS ENUM ('IMPRESSAO', 'LONA', 'COLAGEM', 'MONTAGEM', 'RASPAGEM');
 
 -- CreateEnum
 CREATE TYPE "StatusProposta" AS ENUM ('ENVIADA', 'NEGOCIANDO', 'FECHADA', 'PERDIDA');
@@ -75,6 +78,7 @@ CREATE TABLE "Ponto" (
     "resolucao" TEXT,
     "proprietario" TEXT,
     "proprietarioContato" TEXT,
+    "formato" TEXT,
     "ativo" BOOLEAN NOT NULL DEFAULT true,
     "criadoEm" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -454,3 +458,13 @@ ALTER TABLE "Arquivo" ADD CONSTRAINT "Arquivo_clienteId_fkey" FOREIGN KEY ("clie
 -- AddForeignKey
 ALTER TABLE "Acordo" ADD CONSTRAINT "Acordo_contratoId_fkey" FOREIGN KEY ("contratoId") REFERENCES "Contrato"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
+
+-- CreateTable
+CREATE TABLE "CustoOutdoor" (
+    "id" TEXT NOT NULL,
+    "formato" TEXT NOT NULL,
+    "item" "CustoItem" NOT NULL,
+    "valor" DECIMAL(12,2) NOT NULL,
+    CONSTRAINT "CustoOutdoor_pkey" PRIMARY KEY ("id")
+);
+CREATE UNIQUE INDEX "CustoOutdoor_formato_item_key" ON "CustoOutdoor"("formato", "item");

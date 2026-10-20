@@ -35,7 +35,17 @@ enum CategoriaDespesa {
   COMISSOES
   FOLHA
   MARKETING
+  PRODUCAO
   OUTROS
+}
+
+// Serviços da tabela de custos do outdoor.
+enum CustoItem {
+  IMPRESSAO
+  LONA
+  COLAGEM
+  MONTAGEM
+  RASPAGEM
 }
 
 enum StatusProposta {
@@ -129,6 +139,8 @@ model Ponto {
   resolucao           String?
   proprietario        String? // dono do imóvel/terreno
   proprietarioContato String?
+  // Formato do outdoor (ex.: "9x3"), usado na tabela de custos.
+  formato             String?
   ativo               Boolean         @default(true)
   criadoEm            DateTime        @default(now())
   contratos           ContratoPonto[]
@@ -229,6 +241,16 @@ model Despesa {
 
   @@index([vencimento])
   @@index([pagoEm])
+}
+
+// Tabela de custos do outdoor: valor de cada serviço por formato (item ausente = não se aplica).
+model CustoOutdoor {
+  id      String    @id @default(cuid())
+  formato String
+  item    CustoItem
+  valor   Decimal   @db.Decimal(12, 2)
+
+  @@unique([formato, item])
 }
 
 // Configurações da empresa e regras de cobrança (uma linha só, id fixo).
