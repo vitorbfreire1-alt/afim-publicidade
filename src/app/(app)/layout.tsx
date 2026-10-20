@@ -2,34 +2,16 @@ import Link from "next/link";
 import { LogOut } from "lucide-react";
 import BuscaGlobal from "@/components/BuscaGlobal";
 import Logo from "@/components/Logo";
-import Nav, { type NavItem } from "@/components/Nav";
+import Nav from "@/components/Nav";
+import SubNav from "@/components/SubNav";
 import { logout } from "@/app/actions/auth";
 import { PAPEL_LABEL, requireUser } from "@/lib/auth";
+import { montarMenu } from "@/lib/menu";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
 
-  const financeiro = user.papel === "DONO" || user.papel === "FINANCEIRO";
-  const comercial = user.papel === "DONO" || user.papel === "COMERCIAL";
-  const itens = (...x: (NavItem | false)[]) => x.filter((i): i is NavItem => Boolean(i));
-  const items: NavItem[] = itens(
-    { href: "/", label: "Painel", icone: "painel" },
-    { href: "/carteira", label: "Carteira", icone: "carteira" },
-    { href: "/financeiro", label: "A receber", icone: "financeiro" },
-    { href: "/clientes", label: "Clientes", icone: "clientes" },
-    { href: "/pontos", label: "Pontos", icone: "pontos" },
-    { href: "/disponibilidade", label: "Disponib.", icone: "disponibilidade" },
-    comercial && { href: "/propostas", label: "Propostas", icone: "propostas" },
-    { href: "/ocorrencias", label: "Manutenção", icone: "manutencao" },
-    financeiro && { href: "/despesas", label: "Despesas", icone: "despesas" },
-    financeiro && { href: "/fluxo", label: "Fluxo", icone: "fluxo" },
-    { href: "/comissoes", label: "Comissões", icone: "comissoes" },
-    financeiro && { href: "/indicadores", label: "Metas", icone: "indicadores" },
-    financeiro && { href: "/relatorios", label: "Relatórios", icone: "relatorios" },
-    user.papel === "DONO" && { href: "/historico", label: "Histórico", icone: "historico" },
-    user.papel === "DONO" && { href: "/usuarios", label: "Usuários", icone: "usuarios" },
-    user.papel === "DONO" && { href: "/configuracoes", label: "Config.", icone: "config" },
-  );
+  const areas = montarMenu(user.papel);
   const iniciais = user.nome.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase();
 
   return (
@@ -41,7 +23,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </Link>
         <BuscaGlobal variante="lateral" />
         <div className="-mx-1 min-h-0 flex-1 overflow-y-auto px-1 pb-4">
-          <Nav items={items} variante="lateral" />
+          <Nav areas={areas} variante="lateral" />
         </div>
         <form action={logout}>
           <div className="card flex items-center gap-3 p-3">
@@ -77,11 +59,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </div>
         </header>
 
-        <div className="mx-auto w-full max-w-6xl px-4 pb-32 pt-6 lg:px-10 lg:pb-14 lg:pt-10">{children}</div>
+        <div className="mx-auto w-full max-w-6xl px-4 pb-32 pt-6 lg:px-10 lg:pb-14 lg:pt-10"><SubNav areas={areas} />
+          {children}
+        </div>
       </div>
 
       {/* Barra inferior (celular) */}
-      <Nav items={items} variante="inferior" />
+      <Nav areas={areas} variante="inferior" />
     </div>
   );
 }
