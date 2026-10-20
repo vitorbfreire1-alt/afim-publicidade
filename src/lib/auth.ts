@@ -28,7 +28,7 @@ export async function requireUser(...papeis: Papel[]) {
   if (papeis.length && user.papel !== "DONO" && !papeis.includes(user.papel)) {
     redirect("/?erro=" + encodeURIComponent("Você não tem permissão para isso."));
   }
-  return { id: user.id, nome: user.nome, email: user.email, papel: user.papel };
+  return { id: user.id, nome: user.nome, email: user.email, papel: user.papel, senhaFraca: user.senhaFraca };
 }
 
 /** Usuário logado e ativo, ou null (para rotas de API, que respondem 401 em vez de redirecionar). */

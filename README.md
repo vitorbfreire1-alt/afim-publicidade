@@ -29,6 +29,12 @@ Sistema web (funciona no computador e no celular) para a locação de painéis d
 - **Anexos** (contrato assinado, comprovantes) e **histórico de alterações** (quem fez o quê).
 - **Usuários com perfis** — Dono (tudo), Financeiro (recebimentos, despesas, relatórios) e Comercial (clientes, pontos, contratos, propostas).
 
+**Segurança e dados**
+- **Senha forte** (mín. 10 caracteres, letras e números, sem nome/e-mail nem senhas comuns), troca da própria senha em **Minha conta** e aviso enquanto a senha for fraca.
+- **Bloqueio de login** por 15 minutos após 5 senhas erradas.
+- **Backup** completo em JSON (com ou sem anexos) e botão para **zerar dados de teste** com confirmação, só para o Dono.
+- Cabeçalhos de segurança (anti-embutir em outros sites, HSTS etc.).
+
 Fora do escopo por enquanto: boleto/Pix automático e assinatura eletrônica (dependem de serviços externos pagos) e a importação das planilhas.
 
 ## Stack

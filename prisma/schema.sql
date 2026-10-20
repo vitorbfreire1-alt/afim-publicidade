@@ -37,6 +37,9 @@ CREATE TABLE "Usuario" (
     "papel" "Papel" NOT NULL DEFAULT 'COMERCIAL',
     "ativo" BOOLEAN NOT NULL DEFAULT true,
     "criadoEm" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "tentativas" INTEGER NOT NULL DEFAULT 0,
+    "bloqueadoAte" TIMESTAMP(3),
+    "senhaFraca" BOOLEAN NOT NULL DEFAULT false,
 
     CONSTRAINT "Usuario_pkey" PRIMARY KEY ("id")
 );

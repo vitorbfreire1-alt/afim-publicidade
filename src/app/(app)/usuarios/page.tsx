@@ -19,8 +19,8 @@ export default async function Usuarios({ searchParams }: { searchParams: Promise
         <div><label className="label" htmlFor="nome">Nome</label><input className="input" id="nome" name="nome" required /></div>
         <div><label className="label" htmlFor="email">E-mail</label><input className="input" id="email" name="email" type="email" required /></div>
         <div>
-          <label className="label" htmlFor="senha">Senha inicial (mín. 8)</label>
-          <input className="input" id="senha" name="senha" type="password" minLength={8} autoComplete="new-password" required />
+          <label className="label" htmlFor="senha">Senha inicial (mín. 10, letras e números)</label>
+          <input className="input" id="senha" name="senha" type="password" minLength={10} autoComplete="new-password" required />
         </div>
         <div>
           <label className="label" htmlFor="papel">Perfil</label>
@@ -42,7 +42,7 @@ export default async function Usuarios({ searchParams }: { searchParams: Promise
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <form action={redefinirSenha.bind(null, u.id)} className="flex gap-2">
-                <input className="input !min-h-9 w-36" name="senha" type="password" minLength={8} placeholder="Nova senha" autoComplete="new-password" required />
+                <input className="input !min-h-9 w-36" name="senha" type="password" minLength={10} placeholder="Nova senha" autoComplete="new-password" required />
                 <button className="btn btn-sm" type="submit">Trocar</button>
               </form>
               {u.id !== eu.id && (

@@ -77,13 +77,18 @@ enum FormaPagamento {
 }
 
 model Usuario {
-  id        String   @id @default(cuid())
-  nome      String
-  email     String   @unique
-  senhaHash String
-  papel     Papel    @default(COMERCIAL)
-  ativo     Boolean  @default(true)
-  criadoEm  DateTime @default(now())
+  id           String    @id @default(cuid())
+  nome         String
+  email        String    @unique
+  senhaHash    String
+  papel        Papel     @default(COMERCIAL)
+  ativo        Boolean   @default(true)
+  criadoEm     DateTime  @default(now())
+  // Proteção do login: bloqueio temporário após várias senhas erradas.
+  tentativas   Int       @default(0)
+  bloqueadoAte DateTime?
+  // Marcada no login quando a senha digitada não atende à regra de senha forte (aviso para trocar).
+  senhaFraca   Boolean   @default(false)
 
   contratosVendidos Contrato[]
   propostas         Proposta[]

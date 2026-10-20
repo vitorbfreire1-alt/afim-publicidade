@@ -70,6 +70,7 @@ export function montarMenu(papel: Papel): Area[] {
         { href: "/usuarios", label: "Usuários" },
         { href: "/configuracoes", label: "Configurações" },
         { href: "/historico", label: "Histórico" },
+        { href: "/dados", label: "Dados e backup" },
       ],
     });
   }
