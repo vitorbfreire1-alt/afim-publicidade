@@ -105,6 +105,7 @@ model Usuario {
   contratosVendidos Contrato[]
   propostas         Proposta[]
   fechamentos       ComissaoFechamento[]
+  pushInscricoes    PushInscricao[]
 }
 
 model Cliente {
@@ -241,6 +242,19 @@ model Despesa {
 
   @@index([vencimento])
   @@index([pagoEm])
+}
+
+// Aparelho que aceitou receber notificações (Web Push).
+model PushInscricao {
+  id        String   @id @default(cuid())
+  usuarioId String
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  criadoEm  DateTime @default(now())
+
+  @@index([usuarioId])
 }
 
 // Tabela de custos do outdoor: valor de cada serviço por formato (item ausente = não se aplica).

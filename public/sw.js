@@ -5,7 +5,7 @@
  *    (assim nada sensível fica no aparelho e, depois de sair, ninguém vê dados antigos).
  *  - Sem internet, mostra uma página simples de "sem conexão".
  */
-const VERSAO = "afim-v1";
+const VERSAO = "afim-v2";
 const ESTATICOS = `${VERSAO}-estaticos`;
 const OFFLINE_URL = "/offline.html";
 
@@ -52,4 +52,30 @@ self.addEventListener("fetch", (evento) => {
     );
   }
   // Todo o resto (APIs, dados, arquivos enviados): direto da rede, sem guardar nada.
+});
+
+// Notificações: mostra o aviso enviado pelo servidor e abre a tela certa ao tocar.
+self.addEventListener("push", (evento) => {
+  let dados = { titulo: "AFIM Publicidade", corpo: "", url: "/" };
+  try { dados = { ...dados, ...evento.data.json() }; } catch { /* aviso sem corpo */ }
+  evento.waitUntil(
+    self.registration.showNotification(dados.titulo, {
+      body: dados.corpo,
+      icon: "/icons/icon-192.png",
+      badge: "/icons/icon-192.png",
+      data: { url: dados.url },
+    }),
+  );
+});
+
+self.addEventListener("notificationclick", (evento) => {
+  evento.notification.close();
+  const destino = new URL(evento.notification.data?.url || "/", self.location.origin).href;
+  evento.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((abas) => {
+      const aberta = abas.find((a) => "focus" in a);
+      if (aberta) return aberta.navigate(destino).then((c) => c && c.focus());
+      return self.clients.openWindow(destino);
+    }),
+  );
 });

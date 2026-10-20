@@ -24,7 +24,7 @@ export interface UsuarioLogado {
 
 type Exigencia = Permissao | "DONO";
 
-const paraUsuario = (u: { id: string; nome: string; email: string; papel: Papel; permissoes: string[]; senhaFraca: boolean }): UsuarioLogado => ({
+export const paraUsuario = (u: { id: string; nome: string; email: string; papel: Papel; permissoes: string[]; senhaFraca: boolean }): UsuarioLogado => ({
   id: u.id,
   nome: u.nome,
   email: u.email,
