@@ -1,4 +1,5 @@
 import Flash from "@/components/Flash";
+import InstalarApp from "@/components/InstalarApp";
 import { trocarMinhaSenha } from "@/app/actions/usuarios";
 import { requireUser } from "@/lib/auth";
 
@@ -15,6 +16,8 @@ export default async function Conta({ searchParams }: { searchParams: Promise<{ 
         <p className="font-semibold">{user.nome}</p>
         <p className="text-sm text-ink-soft">{user.email} · {user.perfil}</p>
       </section>
+
+      <InstalarApp variante="cartao" />
 
       <form action={trocarMinhaSenha} className="card grid gap-4 p-5">
         <h2 className="text-sm font-semibold text-gold-soft">Trocar minha senha</h2>

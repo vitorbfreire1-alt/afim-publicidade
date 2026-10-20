@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { LogOut } from "lucide-react";
 import BuscaGlobal from "@/components/BuscaGlobal";
+import InstalarApp from "@/components/InstalarApp";
 import Logo from "@/components/Logo";
 import Nav from "@/components/Nav";
 import SubNav from "@/components/SubNav";
@@ -59,7 +60,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </div>
         </header>
 
-        <div className="mx-auto w-full max-w-6xl px-4 pb-32 pt-6 lg:px-8 lg:pb-14 lg:pt-10">{user.senhaFraca && (
+        <div className="mx-auto w-full max-w-6xl px-4 pb-32 pt-6 lg:px-8 lg:pb-14 lg:pt-10"><InstalarApp variante="banner" />
+          {user.senhaFraca && (
             <Link href="/conta" className="no-print mb-4 block rounded-xl border border-warn/50 bg-warn/10 px-4 py-3 text-sm text-warn">
               <strong>Sua senha é fraca.</strong> Toque aqui para trocar por uma mais forte (10+ caracteres, com letras e números).
             </Link>

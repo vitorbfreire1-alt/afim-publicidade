@@ -36,6 +36,7 @@
 
 html {
   color-scheme: dark;
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
