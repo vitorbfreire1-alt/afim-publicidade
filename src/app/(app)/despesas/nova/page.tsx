@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Nova despesa" };
 
 export default async function NovaDespesa({ searchParams }: { searchParams: Promise<{ erro?: string }> }) {
-  const [, { erro }] = await Promise.all([requireUser("FINANCEIRO"), searchParams]);
+  const [, { erro }] = await Promise.all([requireUser("despesas"), searchParams]);
   const pontos = await prisma.ponto.findMany({ where: { ativo: true }, orderBy: [{ tipo: "asc" }, { nome: "asc" }] });
 
   return (

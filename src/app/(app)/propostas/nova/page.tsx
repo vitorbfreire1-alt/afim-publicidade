@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Nova proposta" };
 
 export default async function NovaProposta({ searchParams }: { searchParams: Promise<{ erro?: string; cliente?: string }> }) {
-  const [user, sp] = await Promise.all([requireUser("COMERCIAL"), searchParams]);
+  const [user, sp] = await Promise.all([requireUser("propostas"), searchParams]);
   const [clientes, pontos, usuarios] = await Promise.all([
     prisma.cliente.findMany({ where: { ativo: true }, orderBy: { nome: "asc" } }),
     prisma.ponto.findMany({ where: { ativo: true }, orderBy: { nome: "asc" } }),

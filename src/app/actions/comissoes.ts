@@ -11,7 +11,7 @@ import { prisma } from "@/lib/prisma";
 
 /** Lança a comissão do vendedor no mês como despesa (categoria Comissões), uma única vez por mês. */
 export async function lancarComissao(vendedorId: string, mes: string) {
-  const user = await requireUser("FINANCEIRO");
+  const user = await requireUser("baixar");
   const volta = `/comissoes?mes=${mes}`;
   if (!mesValido(mes)) redirect(msg("/comissoes", "erro", "Mês inválido."));
 

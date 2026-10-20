@@ -16,7 +16,7 @@ function Barra({ valor, max, cor = "bg-gold" }: { valor: number; max: number; co
 }
 
 export default async function Relatorios({ searchParams }: { searchParams: Promise<{ de?: string; ate?: string }> }) {
-  const [, sp] = await Promise.all([requireUser("FINANCEIRO"), searchParams]);
+  const [, sp] = await Promise.all([requireUser("relatorios"), searchParams]);
   const periodo = periodoDe(sp.de, sp.ate);
   const r = await relatorioFinanceiro(periodo);
   const qs = `de=${isoDate(periodo.inicio)}&ate=${isoDate(periodo.fim)}`;

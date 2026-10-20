@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import type { TipoOcorrencia } from "@prisma/client";
 import { msg } from "@/components/Flash";
 import { registrar } from "@/lib/audit";
-import { requireUser } from "@/lib/auth";
+import { pode, requireUser } from "@/lib/auth";
 import { data, texto } from "@/lib/form";
 import { hoje, parseMoney } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
@@ -13,7 +13,7 @@ import { prisma } from "@/lib/prisma";
 const TIPOS: TipoOcorrencia[] = ["DEFEITO", "MANUTENCAO_PREVENTIVA", "LIMPEZA", "TROCA_PECA", "OUTRO"];
 
 export async function criarOcorrencia(fd: FormData) {
-  const user = await requireUser();
+  const user = await requireUser("manutencao");
   const pontoId = String(fd.get("pontoId") ?? "");
   const tipo = String(fd.get("tipo") ?? "") as TipoOcorrencia;
   const titulo = String(fd.get("titulo") ?? "").trim();
@@ -30,7 +30,7 @@ export async function criarOcorrencia(fd: FormData) {
 }
 
 export async function mudarStatusOcorrencia(id: string, status: "ABERTA" | "EM_ANDAMENTO") {
-  const user = await requireUser();
+  const user = await requireUser("manutencao");
   await prisma.ocorrencia.update({ where: { id }, data: { status, resolvidaEm: null } });
   await registrar(user, "mudou status", "Ocorrência", id, status);
   revalidatePath("/", "layout");
@@ -39,12 +39,13 @@ export async function mudarStatusOcorrencia(id: string, status: "ABERTA" | "EM_A
 
 /** Resolve a ocorrência; se houve custo, gera a despesa de manutenção ligada ao ponto (a pagar). */
 export async function resolverOcorrencia(id: string, fd: FormData) {
-  const user = await requireUser();
+  const user = await requireUser("manutencao");
   const o = await prisma.ocorrencia.findUnique({ where: { id }, include: { ponto: true } });
   if (!o) redirect(msg("/ocorrencias", "erro", "Ocorrência não encontrada."));
   if (o!.status === "RESOLVIDA") redirect(msg(`/ocorrencias/${id}`, "erro", "Esta ocorrência já foi resolvida."));
 
-  const custoBruto = String(fd.get("custo") ?? "").trim();
+  // Lançar custo cria uma despesa: só quem tem a permissão de despesas.
+  const custoBruto = pode(user, "despesas") ? String(fd.get("custo") ?? "").trim() : "";
   const custo = custoBruto ? parseMoney(fd.get("custo")) : 0;
   if (custoBruto && !(custo > 0)) redirect(msg(`/ocorrencias/${id}`, "erro", "Custo inválido."));
   const resolvidaEm = data(fd, "resolvidaEm") ?? hoje();

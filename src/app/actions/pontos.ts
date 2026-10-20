@@ -38,7 +38,7 @@ function dados(fd: FormData) {
 }
 
 export async function criarPonto(fd: FormData) {
-  const user = await requireUser("COMERCIAL");
+  const user = await requireUser("editar");
   const { tipo, ...d } = dados(fd);
   if (!tipo || !d.nome) redirect(msg("/pontos/novo", "erro", "Informe o tipo e o nome do ponto."));
   const novo = await prisma.ponto.create({ data: { tipo, ...d } });
@@ -48,7 +48,7 @@ export async function criarPonto(fd: FormData) {
 }
 
 export async function atualizarPonto(id: string, fd: FormData) {
-  const user = await requireUser("COMERCIAL");
+  const user = await requireUser("editar");
   const { tipo, ...d } = dados(fd);
   if (!tipo || !d.nome) redirect(msg(`/pontos/${id}`, "erro", "Informe o tipo e o nome do ponto."));
   await prisma.ponto.update({ where: { id }, data: { tipo, ...d } });
@@ -58,7 +58,7 @@ export async function atualizarPonto(id: string, fd: FormData) {
 }
 
 export async function alternarPonto(id: string) {
-  const user = await requireUser("COMERCIAL");
+  const user = await requireUser("editar");
   const p = await prisma.ponto.findUniqueOrThrow({ where: { id } });
   await prisma.ponto.update({ where: { id }, data: { ativo: !p.ativo } });
   await registrar(user, p.ativo ? "desativou" : "reativou", "Ponto", id, p.nome);

@@ -20,7 +20,7 @@ const centavos = (n: number) => Math.round(n * 100);
  * com desconto e entrada opcionais. As originais ficam "renegociadas" (saem da inadimplência, mas o histórico fica).
  */
 export async function criarAcordo(contratoId: string, fd: FormData) {
-  const user = await requireUser("FINANCEIRO");
+  const user = await requireUser("baixar");
   const volta = (t: string) => redirect(msg(`/contratos/${contratoId}`, "erro", t));
 
   const ids = [...new Set(fd.getAll("parcelaIds").map(String))];

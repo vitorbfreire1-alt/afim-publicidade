@@ -2,7 +2,7 @@ import Link from "next/link";
 import { CalendarClock, Percent, Wrench, CircleDollarSign, FileText, Gauge, Receipt, TriangleAlert, TrendingDown, TrendingUp } from "lucide-react";
 import Flash from "@/components/Flash";
 import FluxoMensal from "@/components/FluxoMensal";
-import { requireUser } from "@/lib/auth";
+import { pode, requireUser } from "@/lib/auth";
 import { alertas, fluxoMensal, resumoFinanceiro } from "@/lib/financeiro";
 import { chaveDoMes } from "@/lib/indicadores";
 import { prisma } from "@/lib/prisma";
@@ -61,7 +61,14 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
   const [user, { erro, ok }] = await Promise.all([requireUser(), searchParams]);
   const [r, a, fluxo, meta] = await Promise.all([resumoFinanceiro(), alertas(), fluxoMensal(), prisma.meta.findUnique({ where: { mes: chaveDoMes(hoje()) } })]);
   const h = hoje();
-  const financeiro = user.papel === "DONO" || user.papel === "FINANCEIRO";
+  const vReceber = pode(user, "receber");
+  const vDespesas = pode(user, "despesas");
+  const vMetas = pode(user, "metas");
+  const vCarteira = pode(user, "carteira");
+  const vPontos = pode(user, "pontos");
+  const vManut = pode(user, "manutencao");
+  const nKpis = [vReceber, vReceber, vDespesas, vDespesas && vReceber, vCarteira, vPontos].filter(Boolean).length;
+  const colunas = nKpis >= 5 || nKpis === 3 ? "lg:grid-cols-3" : nKpis === 4 ? "lg:grid-cols-4" : "lg:grid-cols-2";
   const resultado = r.recebidoMes - r.despesasPagasMes;
   const ocupacao = r.pontosTotal ? Math.round((r.pontosOcupados / r.pontosTotal) * 100) : 0;
   const hora = Number(new Intl.DateTimeFormat("pt-BR", { hour: "numeric", hour12: false, timeZone: "America/Sao_Paulo" }).format(new Date()));
@@ -77,16 +84,18 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
         </h1>
       </header>
 
-      <section className={`grid grid-cols-2 gap-3 lg:gap-4 ${financeiro ? "lg:grid-cols-3" : "lg:grid-cols-4"}`}>
-        <Kpi i={1} icone={TriangleAlert} label="Inadimplência" value={money(r.inadimplencia)} sub={r.inadimplenciaAtualizada > r.inadimplencia ? `${r.parcelasEmAtraso} parcela(s) · com encargos ${money(r.inadimplenciaAtualizada)}` : `${r.parcelasEmAtraso} parcela(s) em atraso`} tom={r.inadimplencia > 0 ? "perigo" : "bom"} />
-        <Kpi i={2} icone={CircleDollarSign} label="Recebido no mês" value={money(r.recebidoMes)} sub={`Previsto: ${money(r.previstoMes)}`} />
-        {financeiro && <Kpi i={3} icone={Receipt} label="Despesas pagas no mês" value={money(r.despesasPagasMes)} sub={`A pagar até o fim do mês: ${money(r.despesasAPagar)}`} tom="perigo" />}
-        {financeiro && <Kpi i={4} icone={resultado >= 0 ? TrendingUp : TrendingDown} label="Resultado do mês" value={money(resultado)} sub="Recebido − despesas pagas" tom={resultado >= 0 ? "bom" : "perigo"} />}
-        <Kpi i={5} icone={FileText} label="Contratos ativos" value={String(r.contratosAtivos)} />
-        <Kpi i={6} icone={Gauge} label="Pontos com clientes" value={`${ocupacao}%`} sub={`${r.pontosOcupados} de ${r.pontosTotal} com contrato ativo`} />
+      {nKpis === 0 && !vManut && !vCarteira && <p className="card p-5 text-sm text-ink-soft">Use o menu para acessar as áreas liberadas para você.</p>}
+
+      <section className={`grid grid-cols-2 gap-3 lg:gap-4 ${colunas}`}>
+        {vReceber && <Kpi i={1} icone={TriangleAlert} label="Inadimplência" value={money(r.inadimplencia)} sub={r.inadimplenciaAtualizada > r.inadimplencia ? `${r.parcelasEmAtraso} parcela(s) · com encargos ${money(r.inadimplenciaAtualizada)}` : `${r.parcelasEmAtraso} parcela(s) em atraso`} tom={r.inadimplencia > 0 ? "perigo" : "bom"} />}
+        {vReceber && <Kpi i={2} icone={CircleDollarSign} label="Recebido no mês" value={money(r.recebidoMes)} sub={`Previsto: ${money(r.previstoMes)}`} />}
+        {vDespesas && <Kpi i={3} icone={Receipt} label="Despesas pagas no mês" value={money(r.despesasPagasMes)} sub={`A pagar até o fim do mês: ${money(r.despesasAPagar)}`} tom="perigo" />}
+        {vDespesas && vReceber && <Kpi i={4} icone={resultado >= 0 ? TrendingUp : TrendingDown} label="Resultado do mês" value={money(resultado)} sub="Recebido − despesas pagas" tom={resultado >= 0 ? "bom" : "perigo"} />}
+        {vCarteira && <Kpi i={5} icone={FileText} label="Contratos ativos" value={String(r.contratosAtivos)} />}
+        {vPontos && <Kpi i={6} icone={Gauge} label="Pontos com clientes" value={`${ocupacao}%`} sub={`${r.pontosOcupados} de ${r.pontosTotal} com contrato ativo`} />}
       </section>
 
-      {financeiro && meta && (
+      {vMetas && meta && (
         <Link href="/indicadores" className="card rise mt-4 block p-5 lg:mt-5" style={{ ["--i" as string]: 5 }}>
           <div className="mb-2 flex items-center justify-between text-sm">
             <span className="font-semibold text-gold-soft">Meta do mês</span>
@@ -98,14 +107,17 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
         </Link>
       )}
 
+{vReceber && (
       <section className="card rise mt-4 p-5 lg:mt-5 lg:p-6" style={{ ["--i" as string]: 5 }}>
         <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-gold-soft">
           <TrendingUp className="size-4" /> Recebido x previsto por mês
         </h2>
         <FluxoMensal meses={fluxo} />
       </section>
+)}
 
       <div className="mt-4 grid gap-4 lg:mt-5 lg:grid-cols-2 lg:gap-5">
+{vReceber && (
         <Lista i={6} titulo="Em atraso" icone={TriangleAlert} cor="text-danger" vazio="Nenhuma parcela em atraso.">
           {a.atrasadas.map((p) => (
             <li key={p.id} className="flex items-center justify-between gap-3 py-2.5">
@@ -119,7 +131,9 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
             </li>
           ))}
         </Lista>
+)}
 
+{vReceber && (
         <Lista i={7} titulo="Vencem nos próximos 7 dias" icone={CalendarClock} cor="text-warn" vazio="Nada vencendo esta semana.">
           {a.aVencer.map((p) => (
             <li key={p.id} className="flex items-center justify-between gap-3 py-2.5">
@@ -131,8 +145,9 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
             </li>
           ))}
         </Lista>
+)}
 
-        {financeiro && (
+        {vDespesas && (
           <div className="lg:col-span-2">
             <Lista i={8} titulo="Despesas vencidas ou vencendo em 7 dias" icone={Receipt} cor="text-warn" vazio="Nenhuma despesa pendente.">
               {a.despesas.map((d) => (
@@ -150,6 +165,7 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
           </div>
         )}
 
+{vManut && (
         <div className="lg:col-span-2">
           <Lista i={9} titulo="Manutenção em aberto" icone={Wrench} cor="text-warn" vazio="Nenhuma ocorrência aberta.">
             {a.ocorrencias.map((o) => (
@@ -163,7 +179,9 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
             ))}
           </Lista>
         </div>
+)}
 
+{vCarteira && pode(user, "valores") && (
         <div className="lg:col-span-2">
           <Lista i={9} titulo="Reajuste anual a aplicar (próximos 30 dias)" icone={Percent} cor="text-gold-soft" vazio="Nenhum contrato com reajuste próximo.">
             {a.reajustes.map(({ c, devidoEm }) => (
@@ -176,7 +194,9 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
             ))}
           </Lista>
         </div>
+)}
 
+{vCarteira && (
         <div className="lg:col-span-2">
           <Lista i={10} titulo="Pontos com prazo terminando em até 60 dias" icone={CalendarClock} cor="text-gold-soft" vazio="Nenhum ponto perto do fim do prazo.">
             {a.terminando.map((c) => (
@@ -193,6 +213,7 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
             ))}
           </Lista>
         </div>
+)}
       </div>
     </main>
   );

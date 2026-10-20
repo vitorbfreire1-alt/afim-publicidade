@@ -1,6 +1,6 @@
 import Flash from "@/components/Flash";
 import { trocarMinhaSenha } from "@/app/actions/usuarios";
-import { PAPEL_LABEL, requireUser } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Minha conta" };
@@ -13,7 +13,7 @@ export default async function Conta({ searchParams }: { searchParams: Promise<{ 
       <h1>Minha conta</h1>
       <section className="card p-5">
         <p className="font-semibold">{user.nome}</p>
-        <p className="text-sm text-ink-soft">{user.email} · {PAPEL_LABEL[user.papel]}</p>
+        <p className="text-sm text-ink-soft">{user.email} · {user.perfil}</p>
       </section>
 
       <form action={trocarMinhaSenha} className="card grid gap-4 p-5">

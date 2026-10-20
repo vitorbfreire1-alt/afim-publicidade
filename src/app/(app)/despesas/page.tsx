@@ -16,7 +16,7 @@ const FILTROS = { atraso: "Em atraso", pagar: "A pagar", pagas: "Pagas" } as con
 type Filtro = keyof typeof FILTROS;
 
 export default async function Despesas({ searchParams }: { searchParams: Promise<{ f?: string; erro?: string; ok?: string }> }) {
-  const [, sp] = await Promise.all([requireUser("FINANCEIRO"), searchParams]);
+  const [, sp] = await Promise.all([requireUser("despesas"), searchParams]);
   const f: Filtro = sp.f && sp.f in FILTROS ? (sp.f as Filtro) : "pagar";
   const h = hoje();
 

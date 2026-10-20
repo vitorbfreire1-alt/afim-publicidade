@@ -4,7 +4,7 @@ import Anexos from "@/components/Anexos";
 import Flash from "@/components/Flash";
 import MaskedInput from "@/components/MaskedInput";
 import { mudarStatusOcorrencia, resolverOcorrencia } from "@/app/actions/ocorrencias";
-import { podeEditarCadastros, requireUser } from "@/lib/auth";
+import { pode, requireUser } from "@/lib/auth";
 import { dateBR, hoje, isoDate, money } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 
@@ -14,7 +14,7 @@ const TIPO_LABEL = { DEFEITO: "Defeito", MANUTENCAO_PREVENTIVA: "Manutenção pr
 const STATUS_LABEL = { ABERTA: "Aberta", EM_ANDAMENTO: "Em andamento", RESOLVIDA: "Resolvida" } as const;
 
 export default async function OcorrenciaPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ erro?: string; ok?: string }> }) {
-  const [user, { id }, sp] = await Promise.all([requireUser(), params, searchParams]);
+  const [user, { id }, sp] = await Promise.all([requireUser("manutencao"), params, searchParams]);
   const o = await prisma.ocorrencia.findUnique({ where: { id }, include: { ponto: true } });
   if (!o) notFound();
 
@@ -34,7 +34,7 @@ export default async function OcorrenciaPage({ params, searchParams }: { params:
         <div><p className="label">Aberta em</p><p>{dateBR(o.abertaEm)}</p></div>
         <div><p className="label">Responsável</p><p>{o.responsavel ?? "—"}</p></div>
         {o.resolvidaEm && <div><p className="label">Resolvida em</p><p>{dateBR(o.resolvidaEm)}</p></div>}
-        {o.custo && <div><p className="label">Custo</p><p>{money(o.custo)}</p></div>}
+        {o.custo && pode(user, "valores") && <div><p className="label">Custo</p><p>{money(o.custo)}</p></div>}
         {o.descricao && <p className="text-sm text-ink-soft sm:col-span-3">{o.descricao}</p>}
       </section>
 
@@ -51,21 +51,23 @@ export default async function OcorrenciaPage({ params, searchParams }: { params:
               <label className="label" htmlFor="resolvidaEm">Resolvida em</label>
               <input className="input" id="resolvidaEm" name="resolvidaEm" type="date" defaultValue={isoDate(hoje())} />
             </div>
-            <div>
-              <label className="label" htmlFor="custo">Custo (R$, opcional)</label>
-              <MaskedInput className="input" id="custo" name="custo" mask="dinheiro" placeholder="0,00" />
-            </div>
+            {pode(user, "despesas") && (
+              <div>
+                <label className="label" htmlFor="custo">Custo (R$, opcional)</label>
+                <MaskedInput className="input" id="custo" name="custo" mask="dinheiro" placeholder="0,00" />
+              </div>
+            )}
             <div>
               <label className="label" htmlFor="responsavel">Quem resolveu</label>
               <input className="input" id="responsavel" name="responsavel" defaultValue={o.responsavel ?? ""} />
             </div>
-            <p className="text-xs text-ink-faint sm:col-span-3">Se informar o custo, o sistema cria uma despesa de manutenção a pagar, ligada a este ponto.</p>
+            {pode(user, "despesas") && <p className="text-xs text-ink-faint sm:col-span-3">Se informar o custo, o sistema cria uma despesa de manutenção a pagar, ligada a este ponto.</p>}
             <div className="sm:col-span-3"><button className="btn btn-gold" type="submit">Marcar como resolvida</button></div>
           </form>
         </section>
       )}
 
-      <Anexos titulo="Fotos e comprovantes" onde={{ ocorrenciaId: id }} dono={{ ocorrenciaId: id }} categorias={["OUTRO", "COMPROVANTE"]} volta={`/ocorrencias/${id}`} podeEditar={podeEditarCadastros(user.papel)} />
+      <Anexos titulo="Fotos e comprovantes" onde={{ ocorrenciaId: id }} dono={{ ocorrenciaId: id }} categorias={["OUTRO", "COMPROVANTE"]} volta={`/ocorrencias/${id}`} podeEditar={pode(user, "editar")} />
     </main>
   );
 }

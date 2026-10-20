@@ -13,7 +13,7 @@ import { prisma } from "@/lib/prisma";
 const STATUS: StatusProposta[] = ["ENVIADA", "NEGOCIANDO", "FECHADA", "PERDIDA"];
 
 export async function criarProposta(fd: FormData) {
-  const user = await requireUser("COMERCIAL");
+  const user = await requireUser("propostas");
   const volta = (t: string) => redirect(msg("/propostas/nova", "erro", t));
 
   const clienteId = String(fd.get("clienteId") ?? "");
@@ -42,7 +42,7 @@ export async function criarProposta(fd: FormData) {
 }
 
 export async function mudarStatusProposta(id: string, status: StatusProposta, fd?: FormData) {
-  const user = await requireUser("COMERCIAL");
+  const user = await requireUser("propostas");
   if (!STATUS.includes(status) || status === "FECHADA") redirect(msg(`/propostas/${id}`, "erro", "Para fechar, converta a proposta em contrato."));
   await prisma.proposta.update({
     where: { id },
@@ -54,7 +54,7 @@ export async function mudarStatusProposta(id: string, status: StatusProposta, fd
 }
 
 export async function excluirProposta(id: string) {
-  const user = await requireUser("COMERCIAL");
+  const user = await requireUser("propostas");
   const p = await prisma.proposta.findUnique({ where: { id } });
   if (p?.contratoId) redirect(msg(`/propostas/${id}`, "erro", "Esta proposta já virou contrato e não pode ser excluída."));
   await prisma.proposta.delete({ where: { id } }).catch(() => null);

@@ -12,7 +12,7 @@ import StatusBadge from "@/components/StatusBadge";
 import { adicionarPonto, alterarValorPonto, aplicarReajuste, editarContrato, editarParcela, encerrarPonto, mudarStatusContrato, renovarPonto } from "@/app/actions/contratos";
 import { desativarLinkPublico, gerarLinkPublico } from "@/app/actions/publico";
 import FormAcordo from "@/components/FormAcordo";
-import { podeEditarCadastros, podeReceber, requireUser } from "@/lib/auth";
+import { pode, requireUser } from "@/lib/auth";
 import { FORMAS, FORMA_LABEL as FORMA_ROTULO } from "@/lib/labels";
 import { statusParcela, valorMensalAtual } from "@/lib/financeiro";
 import { addDias, dateBR, hoje, isoDate, money } from "@/lib/format";
@@ -28,7 +28,7 @@ export default async function ContratoPage({ params, searchParams }: {
   params: Promise<{ id: string }>;
   searchParams: Promise<{ erro?: string; ok?: string }>;
 }) {
-  const [user, { id }, { erro, ok }] = await Promise.all([requireUser(), params, searchParams]);
+  const [user, { id }, { erro, ok }] = await Promise.all([requireUser("carteira"), params, searchParams]);
   const c = await prisma.contrato.findUnique({
     where: { id },
     include: {
@@ -54,12 +54,85 @@ export default async function ContratoPage({ params, searchParams }: {
   const atualizado = (p: (typeof c.parcelas)[number]) => (p.pagoEm || p.renegociadaEm ? null : calcularEncargos(Number(p.valor), p.vencimento, regras).total);
   const recebido = c.parcelas.reduce((s, p) => s + Number(p.valorPago ?? 0), 0);
   const emAberto = c.parcelas.filter((p) => !p.pagoEm && !p.renegociadaEm).reduce((s, p) => s + Number(p.valor), 0);
-  const edita = podeEditarCadastros(user.papel);
+  const edita = pode(user, "editar");
   const hojeD = hoje();
   const vencidas = c.parcelas
     .filter((p) => !p.pagoEm && !p.renegociadaEm && p.vencimento < hojeD)
     .map((p) => ({ id: p.id, rotulo: `${p.numero}/${c.parcelas.length} · venceu ${dateBR(p.vencimento)}`, atualizado: calcularEncargos(Number(p.valor), p.vencimento, regras).total }));
   const proximoMes = addDias(hojeD, 30);
+
+  const anexos = (
+      <div className="mt-8 space-y-6">
+        <section className="card p-5">
+          <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold text-gold-soft"><Link2 className="size-4" /> Relatório de veiculação para o cliente</h2>
+          <p className="mb-3 text-xs text-ink-soft">Gere um link para o cliente ver as fotos de veiculação deste contrato, sem login e sem mostrar valores.</p>
+          {c.tokenPublico ? (
+            <div className="space-y-2">
+              <input className="input !text-sm" readOnly value={`${origem}/r/${c.tokenPublico}`} aria-label="Link público" />
+              <div className="flex flex-wrap gap-2">
+                <a className="btn btn-sm" href={`/r/${c.tokenPublico}`} target="_blank" rel="noopener noreferrer">Abrir relatório</a>
+                {edita && (
+                  <form action={desativarLinkPublico.bind(null, id)}>
+                    <ConfirmButton className="btn btn-sm btn-danger" mensagem="Desativar o link? Quem tiver o endereço deixará de conseguir abrir.">Desativar link</ConfirmButton>
+                  </form>
+                )}
+              </div>
+            </div>
+          ) : (
+            edita && <form action={gerarLinkPublico.bind(null, id)}><button className="btn btn-sm btn-gold" type="submit">Gerar link do relatório</button></form>
+          )}
+        </section>
+
+        <Anexos titulo="Comprovação de veiculação (fotos)" onde={{ contratoId: id, categoria: "VEICULACAO" }} dono={{ contratoId: id }} categorias={["VEICULACAO"]} volta={volta} podeEditar={edita} comData />
+        <Anexos titulo="Contrato assinado e comprovantes" onde={{ contratoId: id, categoria: { not: "VEICULACAO" } }} dono={{ contratoId: id }} categorias={["CONTRATO_ASSINADO", "COMPROVANTE", "OUTRO"]} volta={volta} podeEditar={edita} />
+      </div>
+  );
+
+  // Sem a permissão de ver valores: nada de dinheiro, parcelas, reajustes ou acordos — só o que é operacional.
+  if (!pode(user, "valores")) {
+    return (
+      <main>
+        <Flash erro={erro} ok={ok} />
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 className="text-xl font-bold">Contrato #{c.numero}</h1>
+            {pode(user, "clientes") ? <Link className="text-gold hover:underline" href={`/clientes/${c.clienteId}`}>{c.cliente.nome}</Link> : <span className="text-gold">{c.cliente.nome}</span>}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="badge text-gold">{STATUS_CONTRATO_LABEL[c.status]}</span>
+            {edita && c.status === "ATIVO" && (
+              <form action={mudarStatusContrato.bind(null, id, "ENCERRADO", undefined)}>
+                <ConfirmButton className="btn btn-sm" mensagem="Encerrar este contrato?">Encerrar</ConfirmButton>
+              </form>
+            )}
+          </div>
+        </div>
+        <section className="card mb-6 grid gap-4 p-4 sm:grid-cols-2">
+          <div><p className="label">Período</p><p>{dateBR(c.inicio)} a {dateBR(c.fim)}</p></div>
+          <div><p className="label">Vendedor</p><p>{c.vendedor?.nome ?? "—"}</p></div>
+          {c.observacoes && <p className="text-sm text-ink-soft sm:col-span-2">{c.observacoes}</p>}
+        </section>
+        <h2 className="mb-3 font-semibold">Pontos do contrato</h2>
+        <div className="card table-wrap mb-6">
+          <table className="table">
+            <thead><tr><th>Ponto</th><th>Tipo</th><th>Início</th><th>Prazo</th><th>Fim</th></tr></thead>
+            <tbody>
+              {c.pontos.map((cp) => (
+                <tr key={cp.pontoId}>
+                  <td className="font-medium">{cp.ponto.nome}</td>
+                  <td>{TIPO_SINGULAR[cp.ponto.tipo]}</td>
+                  <td>{dateBR(cp.inicio)}</td>
+                  <td>{cp.prazoMeses} meses</td>
+                  <td>{dateBR(cp.fim)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {anexos}
+      </main>
+    );
+  }
 
   return (
     <main>
@@ -225,7 +298,7 @@ export default async function ContratoPage({ params, searchParams }: {
         </details>
       )}
 
-      {podeReceber(user.papel) && c.status === "ATIVO" && vencidas.length > 0 && (
+      {pode(user, "baixar") && c.status === "ATIVO" && vencidas.length > 0 && (
         <details className="card mb-6 p-4">
           <summary className="cursor-pointer font-semibold text-warn">Negociar dívida ({vencidas.length} parcela(s) vencida(s))</summary>
           <FormAcordo contratoId={id} parcelas={vencidas} hojeISO={isoDate(hoje())} mesQueVemISO={isoDate(proximoMes)} />
@@ -310,9 +383,9 @@ export default async function ContratoPage({ params, searchParams }: {
                     volta={volta}
                     pagoEm={p.pagoEm}
                     formaRecebida={p.formaRecebida}
-                    pode={podeReceber(user.papel)}
+                    pode={pode(user, "baixar")}
                   />
-                  {podeReceber(user.papel) && !p.pagoEm && (
+                  {pode(user, "baixar") && !p.pagoEm && (
                     <details>
                       <summary className="btn btn-sm cursor-pointer list-none">Editar</summary>
                       <form action={editarParcela.bind(null, p.id, volta)} className="card mt-2 grid min-w-60 gap-2 p-3">
@@ -352,30 +425,7 @@ export default async function ContratoPage({ params, searchParams }: {
       </div>
 
 
-      <div className="mt-8 space-y-6">
-        <section className="card p-5">
-          <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold text-gold-soft"><Link2 className="size-4" /> Relatório de veiculação para o cliente</h2>
-          <p className="mb-3 text-xs text-ink-soft">Gere um link para o cliente ver as fotos de veiculação deste contrato, sem login e sem mostrar valores.</p>
-          {c.tokenPublico ? (
-            <div className="space-y-2">
-              <input className="input !text-sm" readOnly value={`${origem}/r/${c.tokenPublico}`} aria-label="Link público" />
-              <div className="flex flex-wrap gap-2">
-                <a className="btn btn-sm" href={`/r/${c.tokenPublico}`} target="_blank" rel="noopener noreferrer">Abrir relatório</a>
-                {edita && (
-                  <form action={desativarLinkPublico.bind(null, id)}>
-                    <ConfirmButton className="btn btn-sm btn-danger" mensagem="Desativar o link? Quem tiver o endereço deixará de conseguir abrir.">Desativar link</ConfirmButton>
-                  </form>
-                )}
-              </div>
-            </div>
-          ) : (
-            edita && <form action={gerarLinkPublico.bind(null, id)}><button className="btn btn-sm btn-gold" type="submit">Gerar link do relatório</button></form>
-          )}
-        </section>
-
-        <Anexos titulo="Comprovação de veiculação (fotos)" onde={{ contratoId: id, categoria: "VEICULACAO" }} dono={{ contratoId: id }} categorias={["VEICULACAO"]} volta={volta} podeEditar={edita} comData />
-        <Anexos titulo="Contrato assinado e comprovantes" onde={{ contratoId: id, categoria: { not: "VEICULACAO" } }} dono={{ contratoId: id }} categorias={["CONTRATO_ASSINADO", "COMPROVANTE", "OUTRO"]} volta={volta} podeEditar={edita} />
-      </div>
+      {anexos}
     </main>
   );
 }

@@ -16,7 +16,7 @@ export const metadata = { title: "Metas e indicadores" };
 const pct = (n: number) => `${n.toString().replace(".", ",")}%`;
 
 export default async function Indicadores({ searchParams }: { searchParams: Promise<{ erro?: string; ok?: string }> }) {
-  const [user, sp] = await Promise.all([requireUser("FINANCEIRO"), searchParams]);
+  const [user, sp] = await Promise.all([requireUser("metas"), searchParams]);
   const mes = chaveDoMes(hoje());
   const [ind, resumo, meta] = await Promise.all([calcularIndicadores(), resumoFinanceiro(), prisma.meta.findUnique({ where: { mes } })]);
   const alvo = meta ? Number(meta.valor) : 0;

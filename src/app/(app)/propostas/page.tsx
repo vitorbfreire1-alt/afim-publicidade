@@ -16,7 +16,7 @@ const COLUNAS = [
 ] as const;
 
 export default async function Propostas({ searchParams }: { searchParams: Promise<{ erro?: string; ok?: string }> }) {
-  const [, sp] = await Promise.all([requireUser("COMERCIAL"), searchParams]);
+  const [, sp] = await Promise.all([requireUser("propostas"), searchParams]);
   const h = hoje();
   const propostas = await prisma.proposta.findMany({
     orderBy: { atualizadoEm: "desc" },

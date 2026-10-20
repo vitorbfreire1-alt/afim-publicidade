@@ -1,4 +1,4 @@
-import { getUser, podeReceber } from "@/lib/auth";
+import { getUser, pode } from "@/lib/auth";
 import { getConfig } from "@/lib/config";
 import { paraCsv, type Celula } from "@/lib/csv";
 import { calcularEncargos, regrasDe } from "@/lib/encargos";
@@ -20,23 +20,22 @@ export async function GET(req: Request, { params }: { params: Promise<{ tipo: st
   const { tipo } = await params;
   const url = new URL(req.url);
   const { inicio, fim } = periodoDe(url.searchParams.get("de") ?? undefined, url.searchParams.get("ate") ?? undefined);
-  const financeiro = podeReceber(user.papel);
   const h = hoje();
 
   let cab: string[] = [];
   let linhas: Celula[][] = [];
 
-  if (tipo === "clientes") {
+  if (tipo === "clientes" && pode(user, "clientes")) {
     const r = await prisma.cliente.findMany({ orderBy: { nome: "asc" } });
     cab = ["Cliente", "CPF/CNPJ", "Contato", "Telefone", "E-mail", "Ativo"];
     linhas = r.map((c) => [c.nome, c.documento, c.contato, c.telefone, c.email, c.ativo ? "Sim" : "Não"]);
-  } else if (tipo === "contratos") {
+  } else if (tipo === "contratos" && pode(user, "carteira", "valores")) {
     const r = await prisma.contrato.findMany({ orderBy: { numero: "asc" }, include: { cliente: true, vendedor: true, pontos: { include: { ponto: true } } } });
     cab = ["Nº", "Cliente", "Ponto", "Tipo", "Valor mensal", "Início", "Prazo (meses)", "Fim", "Dia vencimento", "Forma de pagamento", "Status", "Vendedor"];
     linhas = r.flatMap((c) =>
       c.pontos.map((cp) => [c.numero, c.cliente.nome, cp.ponto.nome, TIPO_SINGULAR[cp.ponto.tipo], num(cp.valor), cp.inicio, cp.prazoMeses, cp.fim, c.diaVencimento, FORMA_LABEL[c.formaPagamento], STATUS_CONTRATO_LABEL[c.status], c.vendedor?.nome]),
     );
-  } else if (financeiro && tipo === "parcelas") {
+  } else if (tipo === "parcelas" && pode(user, "receber")) {
     const regras = regrasDe(await getConfig());
     const r = await prisma.parcela.findMany({
       where: { OR: [{ vencimento: { gte: inicio, lte: fim } }, { pagoEm: { gte: inicio, lte: fim } }] },
@@ -48,7 +47,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ tipo: st
       p.contrato.cliente.nome, p.contrato.numero, p.numero, p.vencimento, num(p.valor), SIT[statusParcela(p, h)],
       p.pagoEm || p.renegociadaEm ? null : calcularEncargos(Number(p.valor), p.vencimento, regras, h).total, p.pagoEm, num(p.valorPago), p.formaRecebida ? FORMA_LABEL[p.formaRecebida] : null,
     ]);
-  } else if (financeiro && tipo === "despesas") {
+  } else if (tipo === "despesas" && pode(user, "despesas")) {
     const r = await prisma.despesa.findMany({ where: { OR: [{ vencimento: { gte: inicio, lte: fim } }, { pagoEm: { gte: inicio, lte: fim } }] }, orderBy: { vencimento: "asc" }, include: { ponto: true } });
     cab = ["Descrição", "Categoria", "Fornecedor", "Ponto", "Vencimento", "Valor", "Pago em", "Valor pago"];
     linhas = r.map((d) => [d.descricao, CATEGORIA_LABEL[d.categoria], d.fornecedor, d.ponto?.nome, d.vencimento, num(d.valor), d.pagoEm, num(d.valorPago)]);

@@ -1,4 +1,4 @@
-import { getUser, podeEditarCadastros, podeReceber } from "@/lib/auth";
+import { getUser, pode } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -22,21 +22,21 @@ export async function GET(req: Request) {
   const numero = /^#?(\d{1,7})$/.exec(q) ? Number(/^#?(\d{1,7})$/.exec(q)![1]) : null;
 
   const [clientes, contratos, pontos, propostas, despesas, ocorrencias] = await Promise.all([
-    prisma.cliente.findMany({ where: { OR: [{ nome: contem }, { documento: contem }, { telefone: contem }, { contato: contem }, { email: contem }] }, take: LIMITE, orderBy: { nome: "asc" } }),
-    prisma.contrato.findMany({
+    !pode(user, "clientes") ? Promise.resolve([]) : prisma.cliente.findMany({ where: { OR: [{ nome: contem }, { documento: contem }, { telefone: contem }, { contato: contem }, { email: contem }] }, take: LIMITE, orderBy: { nome: "asc" } }),
+    !pode(user, "carteira") ? Promise.resolve([]) : prisma.contrato.findMany({
       where: { OR: [{ cliente: { nome: contem } }, ...(numero !== null ? [{ numero }] : []), { pontos: { some: { ponto: { nome: contem } } } }] },
       take: LIMITE,
       orderBy: { numero: "desc" },
       include: { cliente: true },
     }),
-    prisma.ponto.findMany({ where: { OR: [{ nome: contem }, { endereco: contem }] }, take: LIMITE, orderBy: { nome: "asc" } }),
-    podeEditarCadastros(user.papel)
+    !pode(user, "pontos") ? Promise.resolve([]) : prisma.ponto.findMany({ where: { OR: [{ nome: contem }, { endereco: contem }] }, take: LIMITE, orderBy: { nome: "asc" } }),
+    pode(user, "propostas")
       ? prisma.proposta.findMany({ where: { OR: [{ cliente: { nome: contem } }, ...(numero !== null ? [{ numero }] : [])] }, take: LIMITE, orderBy: { numero: "desc" }, include: { cliente: true } })
       : Promise.resolve([]),
-    podeReceber(user.papel)
+    pode(user, "despesas")
       ? prisma.despesa.findMany({ where: { OR: [{ descricao: contem }, { fornecedor: contem }] }, take: LIMITE, orderBy: { vencimento: "desc" } })
       : Promise.resolve([]),
-    prisma.ocorrencia.findMany({ where: { OR: [{ titulo: contem }, { ponto: { nome: contem } }] }, take: LIMITE, orderBy: { abertaEm: "desc" }, include: { ponto: true } }),
+    !pode(user, "manutencao") ? Promise.resolve([]) : prisma.ocorrencia.findMany({ where: { OR: [{ titulo: contem }, { ponto: { nome: contem } }] }, take: LIMITE, orderBy: { abertaEm: "desc" }, include: { ponto: true } }),
   ]);
 
   const grupos: { titulo: string; itens: Item[] }[] = [

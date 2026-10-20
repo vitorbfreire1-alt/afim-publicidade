@@ -13,7 +13,7 @@ import { CATEGORIAS } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
 
 export async function criarDespesa(fd: FormData) {
-  const user = await requireUser("FINANCEIRO");
+  const user = await requireUser("despesas");
   const volta = (t: string) => redirect(msg("/despesas/nova", "erro", t));
 
   const descricao = String(fd.get("descricao") ?? "").trim();
@@ -49,7 +49,7 @@ export async function criarDespesa(fd: FormData) {
 }
 
 export async function pagarDespesa(id: string, volta: string, fd: FormData) {
-  const user = await requireUser("FINANCEIRO");
+  const user = await requireUser("despesas");
   const pagoEm = data(fd, "pagoEm");
   const valorPago = parseMoney(fd.get("valorPago"));
   if (!pagoEm || !(valorPago > 0)) redirect(msg(volta, "erro", "Informe a data e o valor pago."));
@@ -60,7 +60,7 @@ export async function pagarDespesa(id: string, volta: string, fd: FormData) {
 }
 
 export async function desfazerPagamentoDespesa(id: string, volta: string) {
-  const user = await requireUser("FINANCEIRO");
+  const user = await requireUser("despesas");
   await prisma.despesa.update({ where: { id }, data: { pagoEm: null, valorPago: null } });
   await registrar(user, "desfez pagamento", "Despesa", id, "");
   revalidatePath("/", "layout");
@@ -69,7 +69,7 @@ export async function desfazerPagamentoDespesa(id: string, volta: string) {
 
 /** Exclui a despesa; com `serie`, exclui também as próximas (não pagas) criadas pela mesma repetição. */
 export async function excluirDespesa(id: string, volta: string, serie: boolean) {
-  const user = await requireUser("FINANCEIRO");
+  const user = await requireUser("despesas");
   const d = await prisma.despesa.findUnique({ where: { id } });
   if (!d) redirect(msg(volta, "erro", "Despesa não encontrada."));
   if (serie && d!.grupo) {

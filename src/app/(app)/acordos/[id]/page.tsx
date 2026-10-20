@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Acordo" };
 
 export default async function AcordoPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ erro?: string; ok?: string }> }) {
-  const [, { id }, sp] = await Promise.all([requireUser(), params, searchParams]);
+  const [, { id }, sp] = await Promise.all([requireUser("receber"), params, searchParams]);
   const a = await prisma.acordo.findUnique({
     where: { id },
     include: { contrato: { include: { cliente: true } }, geradas: { orderBy: { vencimento: "asc" } }, renegociadas: { orderBy: { vencimento: "asc" } } },

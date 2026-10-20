@@ -15,7 +15,7 @@ import { FORMAS } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
 
 export async function criarContrato(fd: FormData) {
-  const user = await requireUser("COMERCIAL");
+  const user = await requireUser("editar", "valores");
   const volta = (t: string) => redirect(msg("/contratos/novo", "erro", t));
 
   const clienteId = String(fd.get("clienteId") ?? "");
@@ -93,7 +93,7 @@ export async function criarContrato(fd: FormData) {
 
 /** `volta` é a página para onde retornar (só caminhos internos); por padrão, o próprio contrato. */
 export async function mudarStatusContrato(id: string, status: "ATIVO" | "ENCERRADO" | "CANCELADO", volta?: string) {
-  const user = await requireUser("COMERCIAL");
+  const user = await requireUser("editar");
   await prisma.contrato.update({ where: { id }, data: { status } });
   await registrar(user, status === "ATIVO" ? "reativou" : status === "ENCERRADO" ? "encerrou" : "cancelou", "Contrato", id, `Contrato ${id.slice(-6)}`);
   revalidatePath("/", "layout");
@@ -103,7 +103,7 @@ export async function mudarStatusContrato(id: string, status: "ATIVO" | "ENCERRA
 
 /** Adiciona um ponto a um contrato ativo, com valor, início e prazo próprios. */
 export async function adicionarPonto(contratoId: string, fd: FormData) {
-  const user = await requireUser("COMERCIAL");
+  const user = await requireUser("editar", "valores");
   const volta = (t: string) => redirect(msg(`/contratos/${contratoId}`, "erro", t));
 
   const pontoId = String(fd.get("pontoId") ?? "");
@@ -143,7 +143,7 @@ export async function adicionarPonto(contratoId: string, fd: FormData) {
 
 /** Estende o prazo de um ponto do contrato (renovação), opcionalmente com um novo valor mensal. */
 export async function renovarPonto(contratoId: string, pontoId: string, fd: FormData) {
-  const user = await requireUser("COMERCIAL");
+  const user = await requireUser("editar", "valores");
   const volta = (t: string) => redirect(msg(`/contratos/${contratoId}`, "erro", t));
 
   const meses = inteiro(fd, "meses");
@@ -186,7 +186,7 @@ const INDICES = ["IGP-M", "IPCA", "Acordo", "Outro"];
 
 /** Aplica um reajuste percentual às parcelas futuras não pagas e aos valores dos pontos ainda vigentes. */
 export async function aplicarReajuste(contratoId: string, fd: FormData) {
-  const user = await requireUser("COMERCIAL");
+  const user = await requireUser("editar", "valores");
   const volta = (t: string) => redirect(msg(`/contratos/${contratoId}`, "erro", t));
 
   const percentual = Number(String(fd.get("percentual") ?? "").replace(",", "."));
@@ -229,7 +229,7 @@ const arred = (n: number) => Math.round(n * 100) / 100;
 
 /** Dados gerais: forma de pagamento, dia de vencimento (move as parcelas ainda não pagas), vendedor, comissão e observações. */
 export async function editarContrato(id: string, fd: FormData) {
-  const user = await requireUser("COMERCIAL");
+  const user = await requireUser("editar", "valores");
   const volta = (t: string) => redirect(msg(`/contratos/${id}`, "erro", t));
 
   const forma = String(fd.get("formaPagamento") ?? "") as FormaPagamento;
@@ -264,7 +264,7 @@ export async function editarContrato(id: string, fd: FormData) {
 
 /** Novo valor mensal de um ponto, a partir de hoje: ajusta as parcelas futuras não pagas na diferença. */
 export async function alterarValorPonto(contratoId: string, pontoId: string, fd: FormData) {
-  const user = await requireUser("COMERCIAL");
+  const user = await requireUser("editar", "valores");
   const volta = (t: string) => redirect(msg(`/contratos/${contratoId}`, "erro", t));
   const novo = parseMoney(fd.get("valor"));
   if (!(novo > 0)) volta("Informe o novo valor mensal.");
@@ -299,7 +299,7 @@ export async function alterarValorPonto(contratoId: string, pontoId: string, fd:
  * Para "trocar" um ponto, encerre o antigo e adicione o novo.
  */
 export async function encerrarPonto(contratoId: string, pontoId: string, fd: FormData) {
-  const user = await requireUser("COMERCIAL");
+  const user = await requireUser("editar", "valores");
   const volta = (t: string) => redirect(msg(`/contratos/${contratoId}`, "erro", t));
   const corte = data(fd, "data");
   if (!corte) volta("Informe a data de encerramento.");
@@ -344,7 +344,7 @@ export async function encerrarPonto(contratoId: string, pontoId: string, fd: For
 
 /** Ajusta uma parcela ainda em aberto (valor, vencimento, motivo): descontos, prorrogações. */
 export async function editarParcela(id: string, volta: string, fd: FormData) {
-  const user = await requireUser("FINANCEIRO");
+  const user = await requireUser("baixar");
   const valor = parseMoney(fd.get("valor"));
   const vencimento = data(fd, "vencimento");
   if (!(valor > 0) || !vencimento) redirect(msg(volta, "erro", "Informe um valor e uma data de vencimento válidos."));

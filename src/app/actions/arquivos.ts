@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import type { CategoriaArquivo } from "@prisma/client";
 import { msg } from "@/components/Flash";
 import { registrar } from "@/lib/audit";
-import { requireUser } from "@/lib/auth";
+import { pode, requireUser } from "@/lib/auth";
 import { data, texto } from "@/lib/form";
 import { prisma } from "@/lib/prisma";
 
@@ -24,6 +24,8 @@ function tipoReal(b: Buffer): string | null {
 
 export async function enviarArquivo(volta: string, fd: FormData) {
   const user = await requireUser();
+  // Quem registra manutenção ou edita cadastros pode anexar fotos e arquivos.
+  if (!pode(user, "editar") && !pode(user, "manutencao")) redirect(msg(volta, "erro", "Você não tem permissão para enviar arquivos."));
   const arquivo = fd.get("arquivo");
   if (!(arquivo instanceof File) || arquivo.size === 0) redirect(msg(volta, "erro", "Escolha um arquivo."));
   const f = arquivo as File;
@@ -63,7 +65,7 @@ export async function enviarArquivo(volta: string, fd: FormData) {
 }
 
 export async function excluirArquivo(id: string, volta: string) {
-  const user = await requireUser("COMERCIAL");
+  const user = await requireUser("editar");
   const a = await prisma.arquivo.findUnique({ where: { id }, select: { nome: true } });
   await prisma.arquivo.delete({ where: { id } }).catch(() => null);
   if (a) await registrar(user, "excluiu arquivo", "Arquivo", id, a.nome);

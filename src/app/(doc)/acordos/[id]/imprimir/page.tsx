@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Termo de acordo", robots: { index: false } };
 
 export default async function TermoAcordo({ params }: { params: Promise<{ id: string }> }) {
-  const [, { id }] = await Promise.all([requireUser(), params]);
+  const [, { id }] = await Promise.all([requireUser("receber"), params]);
   const a = await prisma.acordo.findUnique({
     where: { id },
     include: { contrato: { include: { cliente: true } }, geradas: { orderBy: { vencimento: "asc" } }, renegociadas: { orderBy: { vencimento: "asc" } } },

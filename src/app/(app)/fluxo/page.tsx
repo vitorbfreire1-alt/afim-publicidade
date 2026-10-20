@@ -21,7 +21,7 @@ const chave = (d: Date) => `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).
 const deslocar = (d: Date, n: number) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + n, 1));
 
 export default async function Fluxo({ searchParams }: { searchParams: Promise<{ de?: string }> }) {
-  const [, { de }] = await Promise.all([requireUser("FINANCEIRO"), searchParams]);
+  const [, { de }] = await Promise.all([requireUser("fluxo"), searchParams]);
   const inicio = inicioDaJanela(de);
   const meses = await fluxoCaixa(inicio, MESES);
   const iAtual = meses.findIndex((m) => m.atual);

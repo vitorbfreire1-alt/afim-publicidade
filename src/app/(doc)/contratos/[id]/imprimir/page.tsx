@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Contrato", robots: { index: false } };
 
 export default async function ContratoImpresso({ params }: { params: Promise<{ id: string }> }) {
-  const [, { id }] = await Promise.all([requireUser(), params]);
+  const [, { id }] = await Promise.all([requireUser("carteira", "valores"), params]);
   const c = await prisma.contrato.findUnique({ where: { id }, include: { cliente: true, pontos: { include: { ponto: true } } } });
   if (!c) notFound();
   const e = await getConfig();

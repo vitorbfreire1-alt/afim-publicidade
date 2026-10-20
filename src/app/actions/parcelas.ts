@@ -12,7 +12,7 @@ import { FORMAS } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
 
 export async function receberParcela(id: string, volta: string, fd: FormData) {
-  const user = await requireUser("FINANCEIRO");
+  const user = await requireUser("baixar");
   const parcela = await prisma.parcela.findUniqueOrThrow({ where: { id } });
 
   const pagoEm = data(fd, "pagoEm");
@@ -29,7 +29,7 @@ export async function receberParcela(id: string, volta: string, fd: FormData) {
 }
 
 export async function desfazerRecebimento(id: string, volta: string) {
-  const user = await requireUser("FINANCEIRO");
+  const user = await requireUser("baixar");
   await prisma.parcela.update({ where: { id }, data: { pagoEm: null, valorPago: null, formaRecebida: null } });
   await registrar(user, "desfez recebimento", "Parcela", id, "");
   revalidatePath("/", "layout");

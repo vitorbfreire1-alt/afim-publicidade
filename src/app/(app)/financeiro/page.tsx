@@ -4,7 +4,7 @@ import BotaoWhatsapp from "@/components/BotaoWhatsapp";
 import Flash from "@/components/Flash";
 import ReceberParcela from "@/components/ReceberParcela";
 import StatusBadge from "@/components/StatusBadge";
-import { podeReceber, requireUser } from "@/lib/auth";
+import { pode, requireUser } from "@/lib/auth";
 import { filtroEmAtraso, statusParcela } from "@/lib/financeiro";
 import { dateBR, hoje, money } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
@@ -23,7 +23,7 @@ const FILTROS = {
 type Filtro = keyof typeof FILTROS;
 
 export default async function Financeiro({ searchParams }: { searchParams: Promise<{ f?: string; erro?: string; ok?: string }> }) {
-  const [user, sp] = await Promise.all([requireUser(), searchParams]);
+  const [user, sp] = await Promise.all([requireUser("receber"), searchParams]);
   const f: Filtro = sp.f && sp.f in FILTROS ? (sp.f as Filtro) : "atraso";
   const h = hoje();
   const ativo = { contrato: { status: "ATIVO" as const } };
@@ -82,7 +82,7 @@ export default async function Financeiro({ searchParams }: { searchParams: Promi
                     volta={volta}
                     pagoEm={p.pagoEm}
                     formaRecebida={p.formaRecebida}
-                    pode={podeReceber(user.papel)}
+                    pode={pode(user, "baixar")}
                   />
                 </td>
                 <td>

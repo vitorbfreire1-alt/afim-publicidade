@@ -1,14 +1,14 @@
 import Link from "next/link";
 import AbrirLink from "@/components/AbrirLink";
 import Flash from "@/components/Flash";
-import { podeEditarCadastros, requireUser } from "@/lib/auth";
+import { pode, requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Clientes" };
 
 export default async function Clientes({ searchParams }: { searchParams: Promise<{ q?: string; erro?: string; ok?: string }> }) {
-  const [user, { q, erro, ok }] = await Promise.all([requireUser(), searchParams]);
+  const [user, { q, erro, ok }] = await Promise.all([requireUser("clientes"), searchParams]);
   const clientes = await prisma.cliente.findMany({
     where: q ? { OR: [{ nome: { contains: q, mode: "insensitive" } }, { documento: { contains: q } }] } : undefined,
     orderBy: [{ ativo: "desc" }, { nome: "asc" }],
@@ -20,7 +20,7 @@ export default async function Clientes({ searchParams }: { searchParams: Promise
       <Flash erro={erro} ok={ok} />
       <div className="mb-4 flex items-center justify-between gap-3">
         <h1 className="text-xl font-bold">Clientes</h1>
-        {podeEditarCadastros(user.papel) && <Link className="btn btn-gold" href="/clientes/novo">+ Novo cliente</Link>}
+        {pode(user, "editar") && <Link className="btn btn-gold" href="/clientes/novo">+ Novo cliente</Link>}
       </div>
       <form className="mb-4">
         <input className="input" name="q" defaultValue={q} placeholder="Buscar por nome ou CPF/CNPJ" type="search" />

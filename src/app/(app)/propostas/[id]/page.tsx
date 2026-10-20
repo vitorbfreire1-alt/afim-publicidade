@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 const STATUS_LABEL = { ENVIADA: "Enviada", NEGOCIANDO: "Negociando", FECHADA: "Fechada", PERDIDA: "Perdida" } as const;
 
 export default async function PropostaPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ erro?: string; ok?: string }> }) {
-  const [, { id }, sp] = await Promise.all([requireUser("COMERCIAL"), params, searchParams]);
+  const [, { id }, sp] = await Promise.all([requireUser("propostas"), params, searchParams]);
   const p = await prisma.proposta.findUnique({ where: { id }, include: { cliente: true, vendedor: true, pontos: { include: { ponto: true } } } });
   if (!p) notFound();
   const mensal = p.pontos.reduce((s, x) => s + Number(x.valor), 0);

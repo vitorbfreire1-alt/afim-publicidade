@@ -5,7 +5,7 @@ import Anexos from "@/components/Anexos";
 import Flash from "@/components/Flash";
 import PontoForm from "@/components/PontoForm";
 import { alternarPonto, atualizarPonto } from "@/app/actions/pontos";
-import { podeEditarCadastros, podeReceber, requireUser } from "@/lib/auth";
+import { pode, requireUser } from "@/lib/auth";
 import { dateBR, hoje, money } from "@/lib/format";
 import { STATUS_CONTRATO_LABEL, TIPO_SINGULAR } from "@/lib/labels";
 import { lucroPorPonto, ultimosMeses } from "@/lib/lucro";
@@ -19,7 +19,7 @@ export default async function PontoPage({ params, searchParams }: {
   params: Promise<{ id: string }>;
   searchParams: Promise<{ erro?: string; ok?: string }>;
 }) {
-  const [user, { id }, { erro, ok }] = await Promise.all([requireUser(), params, searchParams]);
+  const [user, { id }, { erro, ok }] = await Promise.all([requireUser("pontos"), params, searchParams]);
   const ponto = await prisma.ponto.findUnique({
     where: { id },
     include: {
@@ -29,9 +29,11 @@ export default async function PontoPage({ params, searchParams }: {
   });
   if (!ponto) notFound();
 
-  const edita = podeEditarCadastros(user.papel);
+  const edita = pode(user, "editar");
+  const v = pode(user, "valores");
+  const verContratos = pode(user, "carteira");
   const h = hoje();
-  const verFinanceiro = podeReceber(user.papel);
+  const verFinanceiro = pode(user, "lucro");
   const lucro = verFinanceiro ? (await lucroPorPonto(ultimosMeses(12, h).inicio, h)).pontos.find((x) => x.pontoId === id) : null;
   const mapa = ponto.latitude != null && ponto.longitude != null ? `${ponto.latitude},${ponto.longitude}` : null;
   const linkMapa = mapa
@@ -85,14 +87,14 @@ export default async function PontoPage({ params, searchParams }: {
         <h2 className="mb-3 text-sm font-semibold text-gold-soft">Clientes neste ponto</h2>
         <div className="card table-wrap">
           <table className="table">
-            <thead><tr><th>Cliente</th><th>Contrato</th><th>Valor mensal</th><th>Período</th><th>Situação</th></tr></thead>
+            <thead><tr><th>Cliente</th><th>Contrato</th>{v && <th>Valor mensal</th>}<th>Período</th><th>Situação</th></tr></thead>
             <tbody>
               {ponto.contratos.length === 0 && <tr><td colSpan={5} className="text-ink-soft">Nenhum contrato ainda.</td></tr>}
               {ponto.contratos.map((cp) => (
                 <tr key={cp.contratoId}>
                   <td className="font-medium">{cp.contrato.cliente.nome}</td>
-                  <td><Link className="text-gold" href={`/contratos/${cp.contratoId}`}>#{cp.contrato.numero}</Link></td>
-                  <td>{money(cp.valor)}</td>
+                  <td>{verContratos ? <Link className="text-gold" href={`/contratos/${cp.contratoId}`}>#{cp.contrato.numero}</Link> : `#${cp.contrato.numero}`}</td>
+                  {v && <td>{money(cp.valor)}</td>}
                   <td className="whitespace-nowrap">{dateBR(cp.inicio)} – {dateBR(cp.fim)}</td>
                   <td>{STATUS_CONTRATO_LABEL[cp.contrato.status]}</td>
                 </tr>

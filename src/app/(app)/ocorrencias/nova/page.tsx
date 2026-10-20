@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Nova ocorrência" };
 
 export default async function NovaOcorrencia({ searchParams }: { searchParams: Promise<{ erro?: string; ponto?: string }> }) {
-  const [, sp] = await Promise.all([requireUser(), searchParams]);
+  const [, sp] = await Promise.all([requireUser("manutencao"), searchParams]);
   const pontos = await prisma.ponto.findMany({ where: { ativo: true }, orderBy: [{ tipo: "asc" }, { nome: "asc" }] });
   return (
     <main className="max-w-2xl">

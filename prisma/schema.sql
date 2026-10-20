@@ -40,6 +40,7 @@ CREATE TABLE "Usuario" (
     "tentativas" INTEGER NOT NULL DEFAULT 0,
     "bloqueadoAte" TIMESTAMP(3),
     "senhaFraca" BOOLEAN NOT NULL DEFAULT false,
+    "permissoes" TEXT[] DEFAULT ARRAY[]::TEXT[],
 
     CONSTRAINT "Usuario_pkey" PRIMARY KEY ("id")
 );

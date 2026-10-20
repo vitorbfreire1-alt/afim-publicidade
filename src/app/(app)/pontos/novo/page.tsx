@@ -6,7 +6,7 @@ import { requireUser } from "@/lib/auth";
 export const metadata = { title: "Novo ponto" };
 
 export default async function NovoPonto({ searchParams }: { searchParams: Promise<{ erro?: string; tipo?: string }> }) {
-  const [, { erro, tipo }] = await Promise.all([requireUser("COMERCIAL"), searchParams]);
+  const [, { erro, tipo }] = await Promise.all([requireUser("editar"), searchParams]);
   return (
     <main className="max-w-2xl">
       <h1 className="mb-4 text-xl font-bold">Novo ponto de mídia</h1>

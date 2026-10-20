@@ -2,7 +2,7 @@ import Link from "next/link";
 import AbrirLink from "@/components/AbrirLink";
 import { Plus } from "lucide-react";
 import Flash from "@/components/Flash";
-import { requireUser } from "@/lib/auth";
+import { pode, requireUser } from "@/lib/auth";
 import { dateBR, money } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 
@@ -15,7 +15,8 @@ const TIPO_LABEL = { DEFEITO: "Defeito", MANUTENCAO_PREVENTIVA: "Preventiva", LI
 const STATUS_LABEL = { ABERTA: "Aberta", EM_ANDAMENTO: "Em andamento", RESOLVIDA: "Resolvida" } as const;
 
 export default async function Ocorrencias({ searchParams }: { searchParams: Promise<{ f?: string; erro?: string; ok?: string }> }) {
-  const [, sp] = await Promise.all([requireUser(), searchParams]);
+  const [user, sp] = await Promise.all([requireUser("manutencao"), searchParams]);
+  const v = pode(user, "valores");
   const f: Filtro = sp.f && sp.f in FILTROS ? (sp.f as Filtro) : "abertas";
   const lista = await prisma.ocorrencia.findMany({
     where: f === "abertas" ? { status: { not: "RESOLVIDA" } } : f === "resolvidas" ? { status: "RESOLVIDA" } : {},
@@ -38,9 +39,9 @@ export default async function Ocorrencias({ searchParams }: { searchParams: Prom
       </div>
       <div className="card table-wrap">
         <table className="table">
-          <thead><tr><th>Ocorrência</th><th>Ponto</th><th>Tipo</th><th>Aberta em</th><th>Situação</th><th>Custo</th><th className="col-acao"><span className="sr-only">Ação</span></th></tr></thead>
+          <thead><tr><th>Ocorrência</th><th>Ponto</th><th>Tipo</th><th>Aberta em</th><th>Situação</th>{v && <th>Custo</th>}<th className="col-acao"><span className="sr-only">Ação</span></th></tr></thead>
           <tbody>
-            {lista.length === 0 && <tr><td colSpan={7} className="text-ink-soft">Nenhuma ocorrência.</td></tr>}
+            {lista.length === 0 && <tr><td colSpan={v ? 7 : 6} className="text-ink-soft">Nenhuma ocorrência.</td></tr>}
             {lista.map((o) => (
               <tr key={o.id}>
                 <td><Link className="font-medium hover:text-gold-soft" href={`/ocorrencias/${o.id}`}>{o.titulo}</Link></td>
@@ -48,7 +49,7 @@ export default async function Ocorrencias({ searchParams }: { searchParams: Prom
                 <td>{TIPO_LABEL[o.tipo]}</td>
                 <td className="whitespace-nowrap">{dateBR(o.abertaEm)}</td>
                 <td><span className={`badge ${o.status === "RESOLVIDA" ? "text-good" : o.status === "ABERTA" ? "text-danger" : "text-warn"}`}>{STATUS_LABEL[o.status]}</span></td>
-                <td>{o.custo ? money(o.custo) : "—"}</td>
+                {v && <td>{o.custo ? money(o.custo) : "—"}</td>}
                 <td className="col-acao"><AbrirLink href={`/ocorrencias/${o.id}`} rotulo={`Abrir a ocorrência ${o.titulo}`} /></td>
               </tr>
             ))}

@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Recibo", robots: { index: false } };
 
 export default async function Recibo({ params }: { params: Promise<{ id: string }> }) {
-  const [, { id }] = await Promise.all([requireUser(), params]);
+  const [, { id }] = await Promise.all([requireUser("receber"), params]);
   const p = await prisma.parcela.findUnique({
     where: { id },
     include: { contrato: { include: { cliente: true, pontos: { include: { ponto: true } }, _count: { select: { parcelas: true } } } } },

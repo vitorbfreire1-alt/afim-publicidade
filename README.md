@@ -27,7 +27,7 @@ Sistema web (funciona no computador e no celular) para a locação de painéis d
 - **Manutenção e ocorrências** por ponto (com custo que vira despesa), **ficha do ponto** (mapa, medidas, proprietário, fotos).
 - **Comprovação de veiculação** com fotos e **link público** para o cliente ver (sem login e sem valores).
 - **Anexos** (contrato assinado, comprovantes) e **histórico de alterações** (quem fez o quê).
-- **Usuários com perfis** — Dono (tudo), Financeiro (recebimentos, despesas, relatórios) e Comercial (clientes, pontos, contratos, propostas).
+- **Permissões por usuário** — o Dono escolhe um modelo (Funcionário sem financeiro, Comercial, Financeiro) e marca ou desmarca cada permissão: clientes, carteira, propostas, edição, pontos, manutenção, **ver valores em R$**, A receber, registrar recebimentos, despesas, fluxo, metas, relatórios, lucro e comissões. Sem "ver valores", a pessoa não vê nenhum valor em dinheiro, parcela ou inadimplência. As mudanças valem na hora.
 
 **Segurança e dados**
 - **Senha forte** (mín. 10 caracteres, letras e números, sem nome/e-mail nem senhas comuns), troca da própria senha em **Minha conta** e aviso enquanto a senha for fraca.

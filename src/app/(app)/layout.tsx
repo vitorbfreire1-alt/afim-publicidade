@@ -5,13 +5,13 @@ import Logo from "@/components/Logo";
 import Nav from "@/components/Nav";
 import SubNav from "@/components/SubNav";
 import { logout } from "@/app/actions/auth";
-import { PAPEL_LABEL, requireUser } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import { montarMenu } from "@/lib/menu";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
 
-  const areas = montarMenu(user.papel);
+  const areas = montarMenu(user);
   const iniciais = user.nome.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase();
 
   return (
@@ -32,7 +32,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             </span>
             <Link href="/conta" className="min-w-0 flex-1 leading-tight hover:text-gold-soft" title="Minha conta e troca de senha">
               <span className="block truncate text-sm font-semibold">{user.nome}</span>
-              <span className="block truncate text-xs text-ink-faint">{PAPEL_LABEL[user.papel]} · Minha conta</span>
+              <span className="block truncate text-xs text-ink-faint">{user.perfil} · Minha conta</span>
             </Link>
             <button className="btn btn-sm !min-h-9 !px-2.5" type="submit" aria-label="Sair" title="Sair">
               <LogOut className="size-4" />

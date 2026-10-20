@@ -11,7 +11,7 @@ export const metadata = { title: "Lucro por ponto" };
 const PERIODOS = { "3": "3 meses", "6": "6 meses", "12": "12 meses" } as const;
 
 export default async function LucroPontos({ searchParams }: { searchParams: Promise<{ p?: string }> }) {
-  const [, sp] = await Promise.all([requireUser("FINANCEIRO"), searchParams]);
+  const [, sp] = await Promise.all([requireUser("lucro"), searchParams]);
   const periodo = sp.p && sp.p in PERIODOS ? sp.p : "12";
   const h = hoje();
   const { inicio, fim } = ultimosMeses(Number(periodo), h);

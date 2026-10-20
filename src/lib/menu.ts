@@ -1,4 +1,5 @@
 import type { Papel } from "@prisma/client";
+import { pode, type Permissao } from "./permissoes";
 
 export type IconeArea = "painel" | "comercial" | "pontos" | "financeiro" | "admin";
 
@@ -18,11 +19,9 @@ export interface Area {
 
 const aba = (cond: boolean, a: Aba): Aba[] => (cond ? [a] : []);
 
-/** Menu do sistema: poucas áreas no menu principal, cada uma com suas abas; cada perfil vê só o que pode usar. */
-export function montarMenu(papel: Papel): Area[] {
-  const dono = papel === "DONO";
-  const financeiro = dono || papel === "FINANCEIRO";
-  const comercial = dono || papel === "COMERCIAL";
+/** Menu do sistema: poucas áreas, cada uma com as abas que a pessoa tem permissão de ver (área sem abas some). */
+export function montarMenu(user: { papel: Papel; permissoes: readonly string[] }): Area[] {
+  const ok = (p: Permissao) => pode(user, p);
 
   const areas: Area[] = [
     { id: "painel", label: "Painel", icone: "painel", abas: [{ href: "/", label: "Painel" }] },
@@ -31,9 +30,9 @@ export function montarMenu(papel: Papel): Area[] {
       label: "Comercial",
       icone: "comercial",
       abas: [
-        { href: "/carteira", label: "Carteira", tambem: ["/contratos"] },
-        { href: "/clientes", label: "Clientes" },
-        ...aba(comercial, { href: "/propostas", label: "Propostas" }),
+        ...aba(ok("carteira"), { href: "/carteira", label: "Carteira", tambem: ["/contratos"] }),
+        ...aba(ok("clientes"), { href: "/clientes", label: "Clientes" }),
+        ...aba(ok("propostas"), { href: "/propostas", label: "Propostas" }),
       ],
     },
     {
@@ -41,10 +40,10 @@ export function montarMenu(papel: Papel): Area[] {
       label: "Pontos",
       icone: "pontos",
       abas: [
-        { href: "/pontos", label: "Pontos" },
-        { href: "/disponibilidade", label: "Disponibilidade" },
-        { href: "/ocorrencias", label: "Manutenção" },
-        ...aba(financeiro, { href: "/pontos/lucro", label: "Lucro por ponto" }),
+        ...aba(ok("pontos"), { href: "/pontos", label: "Pontos" }),
+        ...aba(ok("disponibilidade"), { href: "/disponibilidade", label: "Disponibilidade" }),
+        ...aba(ok("manutencao"), { href: "/ocorrencias", label: "Manutenção" }),
+        ...aba(ok("lucro"), { href: "/pontos/lucro", label: "Lucro por ponto" }),
       ],
     },
     {
@@ -52,16 +51,16 @@ export function montarMenu(papel: Papel): Area[] {
       label: "Financeiro",
       icone: "financeiro",
       abas: [
-        { href: "/financeiro", label: "A receber", tambem: ["/acordos"] },
-        ...aba(financeiro, { href: "/despesas", label: "Despesas" }),
-        ...aba(financeiro, { href: "/fluxo", label: "Fluxo de caixa" }),
-        { href: "/comissoes", label: "Comissões" },
-        ...aba(financeiro, { href: "/indicadores", label: "Metas" }),
-        ...aba(financeiro, { href: "/relatorios", label: "Relatórios" }),
+        ...aba(ok("receber"), { href: "/financeiro", label: "A receber", tambem: ["/acordos"] }),
+        ...aba(ok("despesas"), { href: "/despesas", label: "Despesas" }),
+        ...aba(ok("fluxo"), { href: "/fluxo", label: "Fluxo de caixa" }),
+        ...aba(ok("comissoes"), { href: "/comissoes", label: "Comissões" }),
+        ...aba(ok("metas"), { href: "/indicadores", label: "Metas" }),
+        ...aba(ok("relatorios"), { href: "/relatorios", label: "Relatórios" }),
       ],
     },
   ];
-  if (dono) {
+  if (user.papel === "DONO") {
     areas.push({
       id: "admin",
       label: "Admin",
@@ -74,7 +73,7 @@ export function montarMenu(papel: Papel): Area[] {
       ],
     });
   }
-  return areas;
+  return areas.filter((a) => a.abas.length > 0);
 }
 
 const casa = (pathname: string, base: string) => (base === "/" ? pathname === "/" : pathname === base || pathname.startsWith(base + "/"));

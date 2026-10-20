@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import Flash from "@/components/Flash";
 import ConfirmButton from "@/components/ConfirmButton";
 import { lancarComissao } from "@/app/actions/comissoes";
-import { podeReceber, requireUser } from "@/lib/auth";
+import { pode, requireUser } from "@/lib/auth";
 import { comissoesDoMes, mesValido } from "@/lib/comissoes";
 import { hoje, money } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
@@ -18,10 +18,10 @@ const deslocar = (mes: string, n: number) => {
 };
 
 export default async function Comissoes({ searchParams }: { searchParams: Promise<{ mes?: string; erro?: string; ok?: string }> }) {
-  const [user, sp] = await Promise.all([requireUser(), searchParams]);
+  const [user, sp] = await Promise.all([requireUser("comissoes"), searchParams]);
   const mes = mesValido(sp.mes) ?? chaveMes(hoje());
   // Quem não é do financeiro vê só as próprias comissões.
-  const proprio = podeReceber(user.papel) ? undefined : user.id;
+  const proprio = pode(user, "baixar") ? undefined : user.id;
   const [vendedores, fechamentos] = await Promise.all([
     comissoesDoMes(mes, proprio),
     prisma.comissaoFechamento.findMany({ where: { mes } }),
@@ -63,7 +63,7 @@ export default async function Comissoes({ searchParams }: { searchParams: Promis
                     {f ? (
                       <span className="badge text-good">Lançada</span>
                     ) : (
-                      podeReceber(user.papel) && (
+                      pode(user, "baixar") && (
                         <form action={lancarComissao.bind(null, v.vendedorId, mes)}>
                           <ConfirmButton className="btn btn-sm btn-gold" mensagem={`Lançar ${money(v.total)} de comissão de ${v.vendedor} como despesa a pagar?`}>
                             Lançar como despesa

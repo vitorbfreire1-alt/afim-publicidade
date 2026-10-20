@@ -20,7 +20,7 @@ function dados(fd: FormData) {
 }
 
 export async function criarCliente(fd: FormData) {
-  const user = await requireUser("COMERCIAL");
+  const user = await requireUser("editar");
   const d = dados(fd);
   if (!d.nome) redirect(msg("/clientes/novo", "erro", "Informe o nome do cliente."));
   const c = await prisma.cliente.create({ data: d });
@@ -31,7 +31,7 @@ export async function criarCliente(fd: FormData) {
 }
 
 export async function atualizarCliente(id: string, fd: FormData) {
-  const user = await requireUser("COMERCIAL");
+  const user = await requireUser("editar");
   const d = dados(fd);
   if (!d.nome) redirect(msg(`/clientes/${id}`, "erro", "Informe o nome do cliente."));
   await prisma.cliente.update({ where: { id }, data: d });
@@ -41,7 +41,7 @@ export async function atualizarCliente(id: string, fd: FormData) {
 }
 
 export async function alternarCliente(id: string) {
-  const user = await requireUser("COMERCIAL");
+  const user = await requireUser("editar");
   const c = await prisma.cliente.findUniqueOrThrow({ where: { id } });
   await prisma.cliente.update({ where: { id }, data: { ativo: !c.ativo } });
   await registrar(user, c.ativo ? "desativou" : "reativou", "Cliente", id, c.nome);

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import AbrirLink from "@/components/AbrirLink";
 import Flash from "@/components/Flash";
-import { podeEditarCadastros, requireUser } from "@/lib/auth";
+import { pode, requireUser } from "@/lib/auth";
 import { TIPOS, TIPO_LABEL, isTipo } from "@/lib/labels";
 import { hoje } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
@@ -22,7 +22,7 @@ function Ocupacao({ ocupadas, cotas }: { ocupadas: number; cotas: number }) {
 }
 
 export default async function Pontos({ searchParams }: { searchParams: Promise<{ tipo?: string; erro?: string; ok?: string }> }) {
-  const [user, sp] = await Promise.all([requireUser(), searchParams]);
+  const [user, sp] = await Promise.all([requireUser("pontos"), searchParams]);
   const tipo = isTipo(sp.tipo) ? sp.tipo : "LED";
   const h = hoje();
   const pontos = await prisma.ponto.findMany({
@@ -38,7 +38,7 @@ export default async function Pontos({ searchParams }: { searchParams: Promise<{
       <Flash erro={sp.erro} ok={sp.ok} />
       <div className="mb-4 flex items-center justify-between gap-3">
         <h1 className="text-xl font-bold">Pontos de mídia</h1>
-        {podeEditarCadastros(user.papel) && (
+        {pode(user, "editar") && (
           <Link className="btn btn-gold" href={`/pontos/novo?tipo=${tipo}`}>+ Novo ponto</Link>
         )}
       </div>

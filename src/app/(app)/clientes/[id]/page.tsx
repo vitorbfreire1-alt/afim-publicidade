@@ -5,7 +5,7 @@ import Flash from "@/components/Flash";
 import ClienteForm from "@/components/ClienteForm";
 import { alternarCliente, atualizarCliente } from "@/app/actions/clientes";
 import { mudarStatusContrato } from "@/app/actions/contratos";
-import { podeEditarCadastros, requireUser } from "@/lib/auth";
+import { pode, requireUser } from "@/lib/auth";
 import { filtroEmAtraso, valorMensalAtual } from "@/lib/financeiro";
 import { dateBR, money } from "@/lib/format";
 import { STATUS_CONTRATO_LABEL } from "@/lib/labels";
@@ -17,7 +17,7 @@ export default async function ClientePage({ params, searchParams }: {
   params: Promise<{ id: string }>;
   searchParams: Promise<{ erro?: string; ok?: string }>;
 }) {
-  const [user, { id }, { erro, ok }] = await Promise.all([requireUser(), params, searchParams]);
+  const [user, { id }, { erro, ok }] = await Promise.all([requireUser("clientes"), params, searchParams]);
   const cliente = await prisma.cliente.findUnique({
     where: { id },
     include: { contratos: { orderBy: { numero: "desc" }, include: { pontos: { include: { ponto: true } } } } },
@@ -28,14 +28,16 @@ export default async function ClientePage({ params, searchParams }: {
     where: { ...filtroEmAtraso(), contrato: { clienteId: id, status: "ATIVO" } },
     _sum: { valor: true },
   });
-  const edita = podeEditarCadastros(user.papel);
+  const edita = pode(user, "editar");
+  const v = pode(user, "valores");
+  const verContratos = pode(user, "carteira");
 
   return (
     <main className="max-w-3xl">
       <Flash erro={erro} ok={ok} />
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-bold">{cliente.nome}{!cliente.ativo && " (desativado)"}</h1>
-        {Number(atraso._sum.valor ?? 0) > 0 && (
+        {v && Number(atraso._sum.valor ?? 0) > 0 && (
           <span className="badge text-danger">Inadimplência: {money(atraso._sum.valor)}</span>
         )}
       </div>
@@ -48,17 +50,19 @@ export default async function ClientePage({ params, searchParams }: {
         </p>
       )}
 
+      {verContratos && (
+      <>
       <div className="mb-3 mt-8 flex flex-wrap items-center justify-between gap-2">
         <h2 className="font-semibold">Contratos</h2>
-        <Link className="btn btn-sm" href={`/extrato/${id}`} target="_blank">Extrato (imprimir)</Link>
-        {edita && cliente.ativo && (
+        {pode(user, "receber") && <Link className="btn btn-sm" href={`/extrato/${id}`} target="_blank">Extrato (imprimir)</Link>}
+        {edita && v && cliente.ativo && (
           <Link className="btn btn-sm btn-gold" href={`/contratos/novo?cliente=${id}`}>+ Novo contrato</Link>
         )}
       </div>
       <div className="card table-wrap">
         <table className="table">
           <thead>
-            <tr><th>Nº</th><th>Pontos</th><th>Mensal</th><th>Período</th><th>Status</th>{edita && <th></th>}</tr>
+            <tr><th>Nº</th><th>Pontos</th>{v && <th>Mensal</th>}<th>Período</th><th>Status</th>{edita && <th></th>}</tr>
           </thead>
           <tbody>
             {cliente.contratos.length === 0 && <tr><td colSpan={6} className="text-ink-soft">Sem contratos.</td></tr>}
@@ -66,7 +70,7 @@ export default async function ClientePage({ params, searchParams }: {
               <tr key={c.id}>
                 <td><Link className="font-medium text-gold" href={`/contratos/${c.id}`}>#{c.numero}</Link></td>
                 <td>{c.pontos.map((p) => p.ponto.nome).join(", ")}</td>
-                <td>{money(valorMensalAtual(c.pontos))}</td>
+                {v && <td>{money(valorMensalAtual(c.pontos))}</td>}
                 <td className="whitespace-nowrap">{dateBR(c.inicio)} – {dateBR(c.fim)}</td>
                 <td>{STATUS_CONTRATO_LABEL[c.status]}</td>
                 {edita && (
@@ -89,6 +93,8 @@ export default async function ClientePage({ params, searchParams }: {
           </tbody>
         </table>
       </div>
+      </>
+      )}
 
       {edita && (
         <form action={alternarCliente.bind(null, id)} className="mt-6">

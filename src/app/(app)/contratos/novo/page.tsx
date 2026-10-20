@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Novo contrato" };
 
 export default async function NovoContrato({ searchParams }: { searchParams: Promise<{ erro?: string; cliente?: string; proposta?: string }> }) {
-  const [user, sp] = await Promise.all([requireUser("COMERCIAL"), searchParams]);
+  const [user, sp] = await Promise.all([requireUser("editar", "valores"), searchParams]);
   const { erro } = sp;
   const h = hoje();
   // Converter proposta: traz cliente, pontos, valores, prazo e vendedor já preenchidos.

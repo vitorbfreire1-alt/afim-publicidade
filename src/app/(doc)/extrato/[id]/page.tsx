@@ -13,7 +13,7 @@ export const metadata = { title: "Extrato do cliente", robots: { index: false } 
 const SIT = { PAGA: "Recebida", ATRASADA: "Em atraso", A_VENCER: "A vencer", RENEGOCIADA: "Renegociada" } as const;
 
 export default async function Extrato({ params }: { params: Promise<{ id: string }> }) {
-  const [, { id }] = await Promise.all([requireUser(), params]);
+  const [, { id }] = await Promise.all([requireUser("receber"), params]);
   const cliente = await prisma.cliente.findUnique({
     where: { id },
     include: { contratos: { orderBy: { numero: "asc" }, include: { parcelas: { orderBy: { numero: "asc" } }, pontos: { include: { ponto: true } } } } },

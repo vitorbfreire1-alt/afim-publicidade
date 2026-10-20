@@ -1,6 +1,6 @@
 import Link from "next/link";
 import AbrirLink from "@/components/AbrirLink";
-import { podeEditarCadastros, requireUser } from "@/lib/auth";
+import { pode, requireUser } from "@/lib/auth";
 import { atrasoDoPonto, statusParcela } from "@/lib/financeiro";
 import { dateBR, hoje, money } from "@/lib/format";
 import { FORMA_LABEL, TIPOS, TIPO_LABEL, isTipo } from "@/lib/labels";
@@ -11,9 +11,10 @@ export const metadata = { title: "Carteira de clientes" };
 
 /** Reproduz as abas da planilha: uma carteira por tipo de mídia; cada linha é um ponto de um contrato. */
 export default async function Carteira({ searchParams }: { searchParams: Promise<{ tipo?: string }> }) {
-  const [user, sp] = await Promise.all([requireUser(), searchParams]);
+  const [user, sp] = await Promise.all([requireUser("carteira"), searchParams]);
   const tipo = isTipo(sp.tipo) ? sp.tipo : "LED";
   const h = hoje();
+  const v = pode(user, "valores"); // sem esta permissão, nenhum valor em R$ é mostrado
 
   const itens = await prisma.contratoPonto.findMany({
     where: { ponto: { tipo }, contrato: { status: "ATIVO" } },
@@ -49,7 +50,7 @@ export default async function Carteira({ searchParams }: { searchParams: Promise
     <main>
       <div className="mb-4 flex items-center justify-between gap-3">
         <h1 className="text-xl font-bold">Carteira de clientes</h1>
-        {podeEditarCadastros(user.papel) && (
+        {pode(user, "editar", "valores") && (
           <Link className="btn btn-gold" href="/contratos/novo">+ Novo contrato</Link>
         )}
       </div>
@@ -65,34 +66,34 @@ export default async function Carteira({ searchParams }: { searchParams: Promise
         <table className="table table-compact">
           <thead>
             <tr>
-              <th>Nº</th><th>Cliente / Empresa</th><th>Ponto</th><th>Valor mensal</th><th>Pagamento</th>
-              <th>Prazo</th><th>Dia venc.</th><th>Recebimento</th><th>Inadimplência</th><th className="col-acao"><span className="sr-only">Ação</span></th>
+              <th>Nº</th><th>Cliente / Empresa</th><th>Ponto</th>{v && <><th>Valor mensal</th><th>Pagamento</th></>}
+              <th>Prazo</th>{v && <><th>Dia venc.</th><th>Recebimento</th><th>Inadimplência</th></>}<th className="col-acao"><span className="sr-only">Ação</span></th>
             </tr>
           </thead>
           <tbody>
-            {linhas.length === 0 && <tr><td colSpan={10} className="text-ink-soft">Nenhum contrato ativo nesta carteira.</td></tr>}
+            {linhas.length === 0 && <tr><td colSpan={v ? 10 : 5} className="text-ink-soft">Nenhum contrato ativo nesta carteira.</td></tr>}
             {linhas.map(({ cp, recebimento, inadimplencia }) => (
               <tr key={`${cp.contratoId}-${cp.pontoId}`}>
                 <td><Link className="font-medium text-gold" href={`/contratos/${cp.contratoId}`}>{cp.contrato.numero}</Link></td>
                 <td>{cp.contrato.cliente.nome}</td>
                 <td>{cp.ponto.nome}</td>
-                <td className="whitespace-nowrap">{money(cp.valor)}</td>
-                <td>{FORMA_LABEL[cp.contrato.formaPagamento]}</td>
+                {v && <><td className="whitespace-nowrap">{money(cp.valor)}</td>
+                <td>{FORMA_LABEL[cp.contrato.formaPagamento]}</td></>}
                 <td className="whitespace-nowrap">
                   {dateBR(cp.inicio)}
                   <span className="block text-xs text-ink-faint">até {dateBR(cp.fim)}</span>
                 </td>
-                <td>{cp.contrato.diaVencimento}</td>
+                {v && <><td>{cp.contrato.diaVencimento}</td>
                 <td className={`whitespace-nowrap ${recebimento.cor}`}>
                   {recebimento.texto}
                   {recebimento.sub && <span className="block text-xs text-ink-faint">{recebimento.sub}</span>}
                 </td>
-                <td className={inadimplencia ? "font-semibold text-danger" : ""}>{money(inadimplencia)}</td>
+                <td className={inadimplencia ? "font-semibold text-danger" : ""}>{money(inadimplencia)}</td></>}
                 <td className="col-acao"><AbrirLink href={`/contratos/${cp.contratoId}`} rotulo={`Abrir contrato ${cp.contrato.numero} de ${cp.contrato.cliente.nome}`} /></td>
               </tr>
             ))}
           </tbody>
-          {linhas.length > 0 && (
+          {v && linhas.length > 0 && (
             <tfoot>
               <tr>
                 <td colSpan={3} className="font-semibold text-gold">Total</td>
@@ -106,7 +107,7 @@ export default async function Carteira({ searchParams }: { searchParams: Promise
         </table>
       </div>
       <p className="mt-2 text-xs text-ink-faint">
-        Cada linha é um ponto de um contrato, com o valor e o prazo daquele ponto. O total soma só os pontos vigentes hoje.
+        Cada linha é um ponto de um contrato{v ? ", com o valor e o prazo daquele ponto. O total soma só os pontos vigentes hoje" : ", com o prazo daquele ponto"}.
       </p>
     </main>
   );
