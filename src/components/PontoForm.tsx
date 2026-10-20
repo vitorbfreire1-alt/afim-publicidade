@@ -29,6 +29,37 @@ export default function PontoForm({ ponto, tipoInicial, action, label }: {
         <label className="label" htmlFor="endereco">Endereço</label>
         <input className="input" id="endereco" name="endereco" defaultValue={ponto?.endereco ?? ""} />
       </div>
+      <fieldset className="grid gap-4 sm:col-span-2 sm:grid-cols-4">
+        <legend className="label">Ficha técnica</legend>
+        <div>
+          <label className="label" htmlFor="larguraM">Largura (m)</label>
+          <input className="input" id="larguraM" name="larguraM" inputMode="decimal" defaultValue={ponto?.larguraM != null ? String(Number(ponto.larguraM)) : ""} />
+        </div>
+        <div>
+          <label className="label" htmlFor="alturaM">Altura (m)</label>
+          <input className="input" id="alturaM" name="alturaM" inputMode="decimal" defaultValue={ponto?.alturaM != null ? String(Number(ponto.alturaM)) : ""} />
+        </div>
+        <div className="sm:col-span-2">
+          <label className="label" htmlFor="resolucao">Resolução / pitch</label>
+          <input className="input" id="resolucao" name="resolucao" placeholder="Ex.: P4 · 960x576 px" defaultValue={ponto?.resolucao ?? ""} />
+        </div>
+        <div>
+          <label className="label" htmlFor="latitude">Latitude</label>
+          <input className="input" id="latitude" name="latitude" inputMode="decimal" placeholder="-16.7282" defaultValue={ponto?.latitude ?? ""} />
+        </div>
+        <div>
+          <label className="label" htmlFor="longitude">Longitude</label>
+          <input className="input" id="longitude" name="longitude" inputMode="decimal" placeholder="-43.8578" defaultValue={ponto?.longitude ?? ""} />
+        </div>
+        <div>
+          <label className="label" htmlFor="proprietario">Proprietário do imóvel</label>
+          <input className="input" id="proprietario" name="proprietario" defaultValue={ponto?.proprietario ?? ""} />
+        </div>
+        <div>
+          <label className="label" htmlFor="proprietarioContato">Contato do proprietário</label>
+          <input className="input" id="proprietarioContato" name="proprietarioContato" defaultValue={ponto?.proprietarioContato ?? ""} />
+        </div>
+      </fieldset>
       <div className="sm:col-span-2">
         <label className="label" htmlFor="observacoes">Observações (tamanho, faces, etc.)</label>
         <textarea className="input" id="observacoes" name="observacoes" rows={3} defaultValue={ponto?.observacoes ?? ""} />

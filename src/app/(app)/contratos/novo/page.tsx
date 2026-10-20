@@ -9,16 +9,23 @@ import { prisma } from "@/lib/prisma";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Novo contrato" };
 
-export default async function NovoContrato({ searchParams }: { searchParams: Promise<{ erro?: string; cliente?: string }> }) {
-  const [, { erro, cliente }] = await Promise.all([requireUser("COMERCIAL"), searchParams]);
+export default async function NovoContrato({ searchParams }: { searchParams: Promise<{ erro?: string; cliente?: string; proposta?: string }> }) {
+  const [user, sp] = await Promise.all([requireUser("COMERCIAL"), searchParams]);
+  const { erro } = sp;
   const h = hoje();
-  const [clientes, pontos] = await Promise.all([
+  // Converter proposta: traz cliente, pontos, valores, prazo e vendedor já preenchidos.
+  const proposta = sp.proposta
+    ? await prisma.proposta.findFirst({ where: { id: sp.proposta, contratoId: null }, include: { pontos: true } })
+    : null;
+  const cliente = proposta?.clienteId ?? sp.cliente;
+  const [clientes, pontos, vendedores] = await Promise.all([
     prisma.cliente.findMany({ where: { ativo: true }, orderBy: { nome: "asc" } }),
     prisma.ponto.findMany({
       where: { ativo: true },
       orderBy: { nome: "asc" },
       include: { contratos: { where: { contrato: { status: "ATIVO" } }, select: { inicio: true, fim: true } } },
     }),
+    prisma.usuario.findMany({ where: { ativo: true }, orderBy: { nome: "asc" } }),
   ]);
 
   return (
@@ -26,6 +33,7 @@ export default async function NovoContrato({ searchParams }: { searchParams: Pro
       <h1 className="mb-4 text-xl font-bold">Novo contrato</h1>
       <Flash erro={erro} />
       <form action={criarContrato} className="card grid gap-4 p-4 sm:grid-cols-2">
+        {proposta && <input type="hidden" name="propostaId" value={proposta.id} />}
         <div className="sm:col-span-2">
           <label className="label" htmlFor="clienteId">Cliente</label>
           <select className="input" id="clienteId" name="clienteId" defaultValue={cliente ?? ""} required>
@@ -36,6 +44,8 @@ export default async function NovoContrato({ searchParams }: { searchParams: Pro
 
         <PontosDoContrato
           hojeISO={isoDate(hoje())}
+          prazoPadrao={proposta?.prazoMeses ?? 12}
+          inicial={Object.fromEntries((proposta?.pontos ?? []).map((x) => [x.pontoId, Number(x.valor).toFixed(2).replace(".", ",")]))}
           grupos={TIPOS.map((t) => ({
             titulo: TIPO_LABEL[t],
             pontos: pontos
@@ -56,6 +66,17 @@ export default async function NovoContrato({ searchParams }: { searchParams: Pro
         <div>
           <label className="label" htmlFor="diaVencimento">Dia do vencimento (1 a 28)</label>
           <input className="input" id="diaVencimento" name="diaVencimento" type="number" min={1} max={28} defaultValue={10} required />
+        </div>
+        <div>
+          <label className="label" htmlFor="vendedorId">Vendedor (opcional)</label>
+          <select className="input" id="vendedorId" name="vendedorId" defaultValue={proposta?.vendedorId ?? ""}>
+            <option value="">Sem vendedor</option>
+            {vendedores.map((u) => <option key={u.id} value={u.id}>{u.nome}{u.id === user.id ? " (eu)" : ""}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="label" htmlFor="comissaoPct">Comissão (%)</label>
+          <input className="input" id="comissaoPct" name="comissaoPct" inputMode="decimal" placeholder="Ex.: 5" />
         </div>
         <div className="sm:col-span-2">
           <label className="label" htmlFor="observacoes">Observações</label>

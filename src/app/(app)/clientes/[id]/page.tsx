@@ -48,8 +48,9 @@ export default async function ClientePage({ params, searchParams }: {
         </p>
       )}
 
-      <div className="mb-3 mt-8 flex items-center justify-between">
+      <div className="mb-3 mt-8 flex flex-wrap items-center justify-between gap-2">
         <h2 className="font-semibold">Contratos</h2>
+        <Link className="btn btn-sm" href={`/extrato/${id}`} target="_blank">Extrato (imprimir)</Link>
         {edita && cliente.ativo && (
           <Link className="btn btn-sm btn-gold" href={`/contratos/novo?cliente=${id}`}>+ Novo contrato</Link>
         )}

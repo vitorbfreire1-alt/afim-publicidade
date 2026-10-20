@@ -314,3 +314,96 @@ select.input {
   background: rgba(217, 171, 49, 0.3);
   border-radius: 999px;
 }
+
+/* Páginas de documento (recibo, extrato, contrato, relatório público): fundo branco, pensadas para imprimir/PDF. */
+body:has(.doc) {
+  background: #fff !important;
+}
+body:has(.doc)::before {
+  display: none;
+}
+.doc {
+  min-height: 100vh;
+  background: #fff;
+  color: #151515;
+  font-family: var(--font-sans);
+}
+.doc h1,
+.doc h2 {
+  color: #111;
+}
+.doc table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+.doc th {
+  text-align: left;
+  padding: 0.45rem 0.6rem;
+  border-bottom: 2px solid #111;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.doc td {
+  padding: 0.45rem 0.6rem;
+  border-bottom: 1px solid #ddd;
+  vertical-align: top;
+}
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  .doc {
+    min-height: 0;
+  }
+  @page {
+    margin: 16mm;
+  }
+}
+
+/* Impressão das telas do sistema (relatórios): fundo claro, sem menus e botões. */
+@media print {
+  :root {
+    --bg: #fff;
+    --ink: #111;
+    --ink-soft: #444;
+    --ink-faint: #666;
+    --line: #ccc;
+    --gold: #8a6410;
+    --gold-soft: #6b4f0a;
+    --good: #1a7f4f;
+    --danger: #b42318;
+    --warn: #9a6200;
+  }
+  body {
+    background: #fff !important;
+    color: #111;
+  }
+  body::before {
+    display: none;
+  }
+  aside,
+  header.sticky,
+  nav[aria-label="Principal"],
+  .btn {
+    display: none !important;
+  }
+  .card {
+    background: #fff;
+    box-shadow: none;
+    backdrop-filter: none;
+    border-color: #ccc;
+  }
+  .card::before {
+    display: none;
+  }
+  .text-grad {
+    background: none;
+    -webkit-text-fill-color: initial;
+    color: #8a6410;
+  }
+  .rise {
+    animation: none;
+  }
+}

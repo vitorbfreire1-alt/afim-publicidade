@@ -8,6 +8,8 @@ import { filtroEmAtraso, statusParcela } from "@/lib/financeiro";
 import { dateBR, hoje, money } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { linkCobranca } from "@/lib/whatsapp";
+import { calcularEncargos, regrasDe } from "@/lib/encargos";
+import { getConfig } from "@/lib/config";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Financeiro" };
@@ -36,6 +38,8 @@ export default async function Financeiro({ searchParams }: { searchParams: Promi
     take: 200,
     include: { contrato: { include: { cliente: true, _count: { select: { parcelas: true } } } } },
   });
+  const regras = regrasDe(await getConfig());
+  const encargos = (p: (typeof parcelas)[number]) => (p.pagoEm ? null : calcularEncargos(Number(p.valor), p.vencimento, regras, h));
   const total = parcelas.reduce((s, p) => s + Number(f === "pagas" ? p.valorPago : p.valor), 0);
   const volta = `/financeiro?f=${f}`;
 
@@ -64,12 +68,15 @@ export default async function Financeiro({ searchParams }: { searchParams: Promi
                 <td><Link className="text-gold" href={`/contratos/${p.contratoId}`}>#{p.contrato.numero}</Link></td>
                 <td>{p.numero}/{p.contrato._count.parcelas}</td>
                 <td>{dateBR(f === "pagas" ? p.pagoEm : p.vencimento)}</td>
-                <td>{money(f === "pagas" ? p.valorPago : p.valor)}</td>
+                <td className="whitespace-nowrap">
+                  {money(f === "pagas" ? p.valorPago : p.valor)}
+                  {(() => { const e = encargos(p); return e && e.total > Number(p.valor) ? <span className="block text-xs text-danger" title={`Multa ${money(e.multa)} + juros ${money(e.juros)}`}>atualizado {money(e.total)}</span> : null; })()}
+                </td>
                 <td><StatusBadge status={statusParcela(p, h)} /></td>
                 <td>
                   <ReceberParcela
                     id={p.id}
-                    valor={Number(p.valor)}
+                    valor={encargos(p)?.total ?? Number(p.valor)}
                     forma={p.contrato.formaPagamento}
                     volta={volta}
                     pagoEm={p.pagoEm}
@@ -80,7 +87,7 @@ export default async function Financeiro({ searchParams }: { searchParams: Promi
                 <td>
                   {!p.pagoEm && (
                     <BotaoWhatsapp
-                      href={linkCobranca({ cliente: p.contrato.cliente, numero: p.numero, total: p.contrato._count.parcelas, vencimento: p.vencimento, valor: p.valor })}
+                      href={linkCobranca({ cliente: p.contrato.cliente, numero: p.numero, total: p.contrato._count.parcelas, vencimento: p.vencimento, valor: p.valor, atualizado: encargos(p)?.total })}
                     />
                   )}
                 </td>

@@ -9,8 +9,14 @@ export interface GrupoPontos {
 }
 
 /** Escolha dos pontos do contrato; cada ponto marcado pede o seu valor mensal, início e prazo. */
-export default function PontosDoContrato({ grupos, hojeISO }: { grupos: GrupoPontos[]; hojeISO: string }) {
-  const [marcados, setMarcados] = useState<Set<string>>(new Set());
+export default function PontosDoContrato({ grupos, hojeISO, inicial = {}, prazoPadrao = 12 }: {
+  grupos: GrupoPontos[];
+  hojeISO: string;
+  /** Pontos já marcados, com o valor mensal sugerido (ex.: vindos de uma proposta). */
+  inicial?: Record<string, string>;
+  prazoPadrao?: number;
+}) {
+  const [marcados, setMarcados] = useState<Set<string>>(new Set(Object.keys(inicial)));
   const alternar = (id: string) =>
     setMarcados((atual) => {
       const novo = new Set(atual);
@@ -51,7 +57,7 @@ export default function PontosDoContrato({ grupos, hojeISO }: { grupos: GrupoPon
                   <div className="mt-2 grid gap-3 sm:grid-cols-3">
                     <div>
                       <label className="label" htmlFor={`valor_${p.id}`}>Valor mensal (R$)</label>
-                      <MaskedInput className="input" id={`valor_${p.id}`} name={`valor_${p.id}`} mask="dinheiro" placeholder="1.500,00" required />
+                      <MaskedInput className="input" id={`valor_${p.id}`} name={`valor_${p.id}`} mask="dinheiro" placeholder="1.500,00" defaultValue={inicial[p.id] ?? ""} required />
                     </div>
                     <div>
                       <label className="label" htmlFor={`inicio_${p.id}`}>Início</label>
@@ -59,7 +65,7 @@ export default function PontosDoContrato({ grupos, hojeISO }: { grupos: GrupoPon
                     </div>
                     <div>
                       <label className="label" htmlFor={`prazo_${p.id}`}>Prazo (meses)</label>
-                      <input className="input" id={`prazo_${p.id}`} name={`prazo_${p.id}`} type="number" min={1} max={120} defaultValue={12} required />
+                      <input className="input" id={`prazo_${p.id}`} name={`prazo_${p.id}`} type="number" min={1} max={120} defaultValue={prazoPadrao} required />
                     </div>
                   </div>
                 )}

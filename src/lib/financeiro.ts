@@ -1,4 +1,6 @@
 import { prisma } from "./prisma";
+import { calcularEncargos, regrasDe } from "./encargos";
+import { getConfig } from "./config";
 import { addDias, hoje } from "./format";
 
 /** Soma meses (UTC) travando o dia no último dia do mês quando preciso. */
@@ -78,6 +80,10 @@ export async function resumoFinanceiro() {
   const fimMes = new Date(Date.UTC(h.getUTCFullYear(), h.getUTCMonth() + 1, 0));
   const ativo = { contrato: { status: "ATIVO" as const } };
 
+  const regras = regrasDe(await getConfig());
+  const atrasadas = await prisma.parcela.findMany({ where: filtroEmAtraso(), select: { valor: true, vencimento: true } });
+  const comEncargos = atrasadas.reduce((s, p) => s + calcularEncargos(Number(p.valor), p.vencimento, regras, h).total, 0);
+
   const [atraso, previstoMes, recebidoMes, contratosAtivos, pontosOcupados, pontosTotal, despesasPagas, despesasAPagar] = await Promise.all([
     prisma.parcela.aggregate({ where: filtroEmAtraso(), _sum: { valor: true }, _count: true }),
     prisma.parcela.aggregate({
@@ -97,6 +103,7 @@ export async function resumoFinanceiro() {
 
   return {
     inadimplencia: Number(atraso._sum.valor ?? 0),
+    inadimplenciaAtualizada: comEncargos,
     parcelasEmAtraso: atraso._count,
     previstoMes: Number(previstoMes._sum.valor ?? 0),
     recebidoMes: Number(recebidoMes._sum.valorPago ?? 0),
@@ -122,7 +129,7 @@ export async function alertas() {
   const ativo = { contrato: { status: "ATIVO" as const } };
   const include = { contrato: { include: { cliente: true } } };
 
-  const [atrasadas, aVencer, terminando, despesas] = await Promise.all([
+  const [atrasadas, aVencer, terminando, despesas, ocorrencias] = await Promise.all([
     prisma.parcela.findMany({ where: filtroEmAtraso(), include, orderBy: { vencimento: "asc" }, take: 15 }),
     prisma.parcela.findMany({
       where: { ...ativo, pagoEm: null, vencimento: { gte: h, lte: addDias(h, 7) } },
@@ -137,8 +144,21 @@ export async function alertas() {
       take: 15,
     }),
     prisma.despesa.findMany({ where: { pagoEm: null, vencimento: { lte: addDias(h, 7) } }, orderBy: { vencimento: "asc" }, take: 10 }),
+    prisma.ocorrencia.findMany({ where: { status: { not: "RESOLVIDA" } }, orderBy: { abertaEm: "asc" }, take: 8, include: { ponto: true } }),
   ]);
-  return { atrasadas, aVencer, terminando, despesas };
+
+  // Reajuste anual: 12 meses depois do último reajuste (ou do início do contrato).
+  const ativos = await prisma.contrato.findMany({
+    where: { status: "ATIVO" },
+    include: { cliente: true, reajustes: { orderBy: { aplicadoEm: "desc" }, take: 1 } },
+  });
+  const reajustes = ativos
+    .map((c) => ({ c, devidoEm: addMeses(c.reajustes[0]?.aplicadoEm ?? c.inicio, 12) }))
+    .filter((x) => x.devidoEm <= addDias(h, 30) && x.c.fim > x.devidoEm)
+    .sort((a, b) => a.devidoEm.getTime() - b.devidoEm.getTime())
+    .slice(0, 10);
+
+  return { atrasadas, aVencer, terminando, despesas, reajustes, ocorrencias };
 }
 
 export interface MesFluxo {

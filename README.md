@@ -4,18 +4,26 @@ Sistema web (funciona no computador e no celular) para a locação de painéis d
 
 ## O que faz
 
-- **Carteira** — uma aba por tipo de mídia (LED, totens, triedros, outdoors) com as mesmas colunas da planilha: cliente, ponto, valor, forma de pagamento, prazo, dia de vencimento, recebimento e inadimplência acumulada (esta última é calculada, não digitada).
-- **Clientes e pontos** — cadastro, busca e histórico de contratos. Um contrato pode ter vários pontos, e um mesmo ponto pode ter vários clientes ao mesmo tempo.
-- **Contratos** — ao criar, o sistema gera as parcelas mensais conforme prazo e dia de vencimento.
-- **Financeiro** — registrar recebimento (data, valor, forma), desfazer, ver o que está em atraso, a vencer e recebido.
-- **Painel com alertas** — inadimplência, recebido x previsto do mês, ocupação dos pontos, parcelas em atraso, vencimentos dos próximos 7 dias e contratos terminando em 60 dias.
-- **Despesas** — contas a pagar por categoria (energia, aluguel do ponto, manutenção, impostos...), com repetição mensal, pagamento, ligação opcional a um ponto e alerta no painel.
-- **Fluxo de caixa** — entradas e saídas mês a mês (previsto pelo vencimento, realizado pela data de pagamento), com gráfico, resultado e acumulado.
-- **Cotas por ponto** — limite de anunciantes simultâneos; o sistema bloqueia contratos que lotariam o ponto no período.
-- **Renovar e adicionar pontos** a contratos existentes, e **cobrança por WhatsApp** com mensagem pronta.
-- **Usuários com perfis** — Dono (tudo), Financeiro (registra recebimentos), Comercial (clientes, pontos e contratos).
+**Dia a dia**
+- **Carteira** por tipo de mídia (LED, totem, triedro, outdoor), com valor, prazo e inadimplência de cada ponto.
+- **Clientes, pontos e contratos** — um contrato pode ter vários pontos, cada um com valor, início e prazo próprios; um ponto pode ter vários clientes (com limite opcional de **cotas**, que bloqueia contratos que lotariam o ponto).
+- **Renovar / adicionar pontos** a contratos existentes e **reajuste anual** (IGP-M, IPCA ou acordo), com aviso no painel.
+- **Propostas** em funil (enviada → negociando → fechada/perdida), com conversão em contrato já preenchido.
+- **Disponibilidade** — grade de pontos por mês: livre, parcial ou lotado.
 
-Por enquanto só registra: não emite contratos, recibos nem boletos.
+**Financeiro**
+- **A receber** — baixa de parcelas, **multa e juros** automáticos sobre o atraso (configuráveis), **cobrança por WhatsApp** com mensagem pronta.
+- **Despesas** com repetição mensal, **fluxo de caixa** (previsto x realizado), **comissões** de vendedores (lançadas como despesa) e **lucro por ponto**.
+- **Relatórios** (faturamento por mês/tipo/cliente, despesas por categoria, inadimplência por faixa de atraso) e **exportação em CSV/Excel**.
+
+**Documentos e operação**
+- **Recibo**, **extrato do cliente** e **contrato** prontos para imprimir ou salvar em PDF.
+- **Manutenção e ocorrências** por ponto (com custo que vira despesa), **ficha do ponto** (mapa, medidas, proprietário, fotos).
+- **Comprovação de veiculação** com fotos e **link público** para o cliente ver (sem login e sem valores).
+- **Anexos** (contrato assinado, comprovantes) e **histórico de alterações** (quem fez o quê).
+- **Usuários com perfis** — Dono (tudo), Financeiro (recebimentos, despesas, relatórios) e Comercial (clientes, pontos, contratos, propostas).
+
+Fora do escopo por enquanto: boleto/Pix automático e assinatura eletrônica (dependem de serviços externos pagos) e a importação das planilhas.
 
 ## Stack
 

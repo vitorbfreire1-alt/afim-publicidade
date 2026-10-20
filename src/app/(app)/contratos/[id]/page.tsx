@@ -1,16 +1,22 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
+import { FileText, Link2, Receipt } from "lucide-react";
+import Anexos from "@/components/Anexos";
 import BotaoWhatsapp from "@/components/BotaoWhatsapp";
 import ConfirmButton from "@/components/ConfirmButton";
 import Flash from "@/components/Flash";
 import MaskedInput from "@/components/MaskedInput";
 import ReceberParcela from "@/components/ReceberParcela";
 import StatusBadge from "@/components/StatusBadge";
-import { adicionarPonto, mudarStatusContrato, renovarPonto } from "@/app/actions/contratos";
+import { adicionarPonto, aplicarReajuste, mudarStatusContrato, renovarPonto } from "@/app/actions/contratos";
+import { desativarLinkPublico, gerarLinkPublico } from "@/app/actions/publico";
 import { podeEditarCadastros, podeReceber, requireUser } from "@/lib/auth";
 import { statusParcela, valorMensalAtual } from "@/lib/financeiro";
 import { dateBR, hoje, isoDate, money } from "@/lib/format";
 import { linkCobranca } from "@/lib/whatsapp";
+import { calcularEncargos, regrasDe } from "@/lib/encargos";
+import { getConfig } from "@/lib/config";
 import { FORMA_LABEL, STATUS_CONTRATO_LABEL, TIPO_SINGULAR } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
 
@@ -27,6 +33,8 @@ export default async function ContratoPage({ params, searchParams }: {
       cliente: true,
       pontos: { include: { ponto: true } },
       parcelas: { orderBy: { numero: "asc" } },
+      reajustes: { orderBy: { aplicadoEm: "desc" } },
+      vendedor: true,
     },
   });
   if (!c) notFound();
@@ -36,6 +44,10 @@ export default async function ContratoPage({ params, searchParams }: {
   });
 
   const volta = `/contratos/${id}`;
+  const h = await headers();
+  const origem = `${h.get("x-forwarded-proto") ?? "https"}://${h.get("x-forwarded-host") ?? h.get("host")}`;
+  const regras = regrasDe(await getConfig());
+  const atualizado = (p: (typeof c.parcelas)[number]) => (p.pagoEm ? null : calcularEncargos(Number(p.valor), p.vencimento, regras).total);
   const recebido = c.parcelas.reduce((s, p) => s + Number(p.valorPago ?? 0), 0);
   const emAberto = c.parcelas.filter((p) => !p.pagoEm).reduce((s, p) => s + Number(p.valor), 0);
   const edita = podeEditarCadastros(user.papel);
@@ -49,6 +61,7 @@ export default async function ContratoPage({ params, searchParams }: {
           <Link className="text-gold hover:underline" href={`/clientes/${c.clienteId}`}>{c.cliente.nome}</Link>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <Link className="btn btn-sm" href={`/contratos/${id}/imprimir`} target="_blank"><FileText className="size-4" /> Imprimir contrato</Link>
           <span className="badge text-gold">{STATUS_CONTRATO_LABEL[c.status]}</span>
           {edita && c.status === "ATIVO" && (
             <>
@@ -77,6 +90,7 @@ export default async function ContratoPage({ params, searchParams }: {
         <div><p className="label">Forma de pagamento</p><p>{FORMA_LABEL[c.formaPagamento]}</p></div>
         <div><p className="label">Período</p><p>{dateBR(c.inicio)} a {dateBR(c.fim)}</p></div>
         <div><p className="label">Vencimento</p><p>Todo dia {c.diaVencimento}</p></div>
+        {c.vendedor && <div><p className="label">Vendedor</p><p>{c.vendedor.nome}{c.comissaoPct != null && ` · ${Number(c.comissaoPct)}%`}</p></div>}
         <div><p className="label">Recebido</p><p className="text-good">{money(recebido)}</p></div>
         <div><p className="label">Em aberto</p><p>{money(emAberto)}</p></div>
         {c.observacoes && <p className="text-sm text-ink-soft sm:col-span-2 lg:col-span-4">{c.observacoes}</p>}
@@ -157,6 +171,42 @@ export default async function ContratoPage({ params, searchParams }: {
         </details>
       )}
 
+      {(edita || c.reajustes.length > 0) && (
+        <details className="card mb-6 p-4" open={c.reajustes.length > 0 && false}>
+          <summary className="cursor-pointer font-semibold text-gold">Reajuste anual{c.reajustes.length > 0 && ` · ${c.reajustes.length} aplicado(s)`}</summary>
+          {edita && c.status === "ATIVO" && (
+            <form action={aplicarReajuste.bind(null, id)} className="mt-3 grid gap-3 sm:grid-cols-3">
+              <div>
+                <label className="label" htmlFor="percentual">Percentual (%)</label>
+                <input className="input" id="percentual" name="percentual" inputMode="decimal" placeholder="4,5" required />
+              </div>
+              <div>
+                <label className="label" htmlFor="indice">Índice</label>
+                <select className="input" id="indice" name="indice" defaultValue="IGP-M">
+                  <option>IGP-M</option><option>IPCA</option><option>Acordo</option><option>Outro</option>
+                </select>
+              </div>
+              <div className="flex items-end">
+                <ConfirmButton className="btn btn-gold w-full" mensagem="Aplicar o reajuste nas parcelas futuras não pagas? Isso altera os valores a receber.">
+                  Aplicar reajuste
+                </ConfirmButton>
+              </div>
+              <p className="text-xs text-ink-faint sm:col-span-3">Atualiza as parcelas futuras ainda não pagas e o valor mensal dos pontos vigentes. Parcelas já pagas ou vencidas não mudam.</p>
+            </form>
+          )}
+          {c.reajustes.length > 0 && (
+            <ul className="mt-3 divide-y divide-white/5 text-sm">
+              {c.reajustes.map((r) => (
+                <li key={r.id} className="flex justify-between gap-3 py-2">
+                  <span>{dateBR(r.aplicadoEm)} · {r.indice} <strong className="text-gold-soft">{Number(r.percentual) > 0 ? "+" : ""}{Number(r.percentual).toString().replace(".", ",")}%</strong></span>
+                  <span className="text-xs text-ink-faint">{r.usuarioNome}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </details>
+      )}
+
       <h2 className="mb-3 font-semibold">Parcelas</h2>
       <div className="card table-wrap">
         <table className="table">
@@ -168,12 +218,15 @@ export default async function ContratoPage({ params, searchParams }: {
               <tr key={p.id}>
                 <td>{p.numero}/{c.parcelas.length}</td>
                 <td>{dateBR(p.vencimento)}</td>
-                <td>{money(p.valor)}</td>
+                <td className="whitespace-nowrap">
+                  {money(p.valor)}
+                  {(() => { const a = atualizado(p); return a && a > Number(p.valor) ? <span className="block text-xs text-danger">atualizado {money(a)}</span> : null; })()}
+                </td>
                 <td><StatusBadge status={statusParcela(p)} /></td>
                 <td>
                   <ReceberParcela
                     id={p.id}
-                    valor={Number(p.valor)}
+                    valor={atualizado(p) ?? Number(p.valor)}
                     forma={c.formaPagamento}
                     volta={volta}
                     pagoEm={p.pagoEm}
@@ -182,9 +235,12 @@ export default async function ContratoPage({ params, searchParams }: {
                   />
                 </td>
                 <td>
+                  {p.pagoEm && (
+                    <Link className="btn btn-sm" href={`/recibo/${p.id}`} target="_blank"><Receipt className="size-3.5" /> Recibo</Link>
+                  )}
                   {!p.pagoEm && (
                     <BotaoWhatsapp
-                      href={linkCobranca({ cliente: c.cliente, numero: p.numero, total: c.parcelas.length, vencimento: p.vencimento, valor: p.valor })}
+                      href={linkCobranca({ cliente: c.cliente, numero: p.numero, total: c.parcelas.length, vencimento: p.vencimento, valor: p.valor, atualizado: atualizado(p) ?? undefined })}
                     />
                   )}
                 </td>
@@ -194,6 +250,31 @@ export default async function ContratoPage({ params, searchParams }: {
         </table>
       </div>
 
+
+      <div className="mt-8 space-y-6">
+        <section className="card p-5">
+          <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold text-gold-soft"><Link2 className="size-4" /> Relatório de veiculação para o cliente</h2>
+          <p className="mb-3 text-xs text-ink-soft">Gere um link para o cliente ver as fotos de veiculação deste contrato, sem login e sem mostrar valores.</p>
+          {c.tokenPublico ? (
+            <div className="space-y-2">
+              <input className="input !text-sm" readOnly value={`${origem}/r/${c.tokenPublico}`} aria-label="Link público" />
+              <div className="flex flex-wrap gap-2">
+                <a className="btn btn-sm" href={`/r/${c.tokenPublico}`} target="_blank" rel="noopener noreferrer">Abrir relatório</a>
+                {edita && (
+                  <form action={desativarLinkPublico.bind(null, id)}>
+                    <ConfirmButton className="btn btn-sm btn-danger" mensagem="Desativar o link? Quem tiver o endereço deixará de conseguir abrir.">Desativar link</ConfirmButton>
+                  </form>
+                )}
+              </div>
+            </div>
+          ) : (
+            edita && <form action={gerarLinkPublico.bind(null, id)}><button className="btn btn-sm btn-gold" type="submit">Gerar link do relatório</button></form>
+          )}
+        </section>
+
+        <Anexos titulo="Comprovação de veiculação (fotos)" onde={{ contratoId: id, categoria: "VEICULACAO" }} dono={{ contratoId: id }} categorias={["VEICULACAO"]} volta={volta} podeEditar={edita} comData />
+        <Anexos titulo="Contrato assinado e comprovantes" onde={{ contratoId: id, categoria: { not: "VEICULACAO" } }} dono={{ contratoId: id }} categorias={["CONTRATO_ASSINADO", "COMPROVANTE", "OUTRO"]} volta={volta} podeEditar={edita} />
+      </div>
     </main>
   );
 }

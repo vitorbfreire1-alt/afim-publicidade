@@ -14,10 +14,12 @@ interface Dados {
   total: number;
   vencimento: Date;
   valor: unknown;
+  /** Valor com multa e juros, quando a parcela está em atraso. */
+  atualizado?: number;
 }
 
 /** Link do WhatsApp com a mensagem pronta (lembrete se ainda não venceu, cobrança se já venceu). */
-export function linkCobranca({ cliente, numero, total, vencimento, valor }: Dados): string | null {
+export function linkCobranca({ cliente, numero, total, vencimento, valor, atualizado }: Dados): string | null {
   const fone = telefoneWhatsapp(cliente.telefone);
   if (!fone) return null;
 
@@ -26,7 +28,7 @@ export function linkCobranca({ cliente, numero, total, vencimento, valor }: Dado
   const parcela = `parcela ${numero}/${total}, no valor de ${money(valor)}`;
   const texto =
     dias > 0
-      ? `${saudacao} Aqui é da AFIM Publicidade. Identificamos que a ${parcela}, venceu em ${dateBR(vencimento)} (${dias} dia(s) de atraso). Pode nos enviar o comprovante ou informar a previsão de pagamento? Obrigado!`
+      ? `${saudacao} Aqui é da AFIM Publicidade. Identificamos que a ${parcela}, venceu em ${dateBR(vencimento)} (${dias} dia(s) de atraso).${atualizado && atualizado > Number(valor) ? ` Com multa e juros, o valor atualizado é ${money(atualizado)}.` : ""} Pode nos enviar o comprovante ou informar a previsão de pagamento? Obrigado!`
       : `${saudacao} Aqui é da AFIM Publicidade. Passando para lembrar que a ${parcela}, vence em ${dateBR(vencimento)}. Qualquer dúvida, estamos à disposição. Obrigado!`;
 
   return `https://wa.me/${fone}?text=${encodeURIComponent(texto)}`;

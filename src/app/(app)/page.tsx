@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarClock, CircleDollarSign, FileText, Gauge, Receipt, TriangleAlert, TrendingDown, TrendingUp } from "lucide-react";
+import { CalendarClock, Percent, Wrench, CircleDollarSign, FileText, Gauge, Receipt, TriangleAlert, TrendingDown, TrendingUp } from "lucide-react";
 import Flash from "@/components/Flash";
 import FluxoMensal from "@/components/FluxoMensal";
 import { requireUser } from "@/lib/auth";
@@ -76,7 +76,7 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
       </header>
 
       <section className={`grid grid-cols-2 gap-3 lg:gap-4 ${financeiro ? "lg:grid-cols-3" : "lg:grid-cols-4"}`}>
-        <Kpi i={1} icone={TriangleAlert} label="Inadimplência" value={money(r.inadimplencia)} sub={`${r.parcelasEmAtraso} parcela(s) em atraso`} tom={r.inadimplencia > 0 ? "perigo" : "bom"} />
+        <Kpi i={1} icone={TriangleAlert} label="Inadimplência" value={money(r.inadimplencia)} sub={r.inadimplenciaAtualizada > r.inadimplencia ? `${r.parcelasEmAtraso} parcela(s) · com encargos ${money(r.inadimplenciaAtualizada)}` : `${r.parcelasEmAtraso} parcela(s) em atraso`} tom={r.inadimplencia > 0 ? "perigo" : "bom"} />
         <Kpi i={2} icone={CircleDollarSign} label="Recebido no mês" value={money(r.recebidoMes)} sub={`Previsto: ${money(r.previstoMes)}`} />
         {financeiro && <Kpi i={3} icone={Receipt} label="Despesas pagas no mês" value={money(r.despesasPagasMes)} sub={`A pagar até o fim do mês: ${money(r.despesasAPagar)}`} tom="perigo" />}
         {financeiro && <Kpi i={4} icone={resultado >= 0 ? TrendingUp : TrendingDown} label="Resultado do mês" value={money(resultado)} sub="Recebido − despesas pagas" tom={resultado >= 0 ? "bom" : "perigo"} />}
@@ -137,7 +137,34 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
         )}
 
         <div className="lg:col-span-2">
-          <Lista i={9} titulo="Pontos com prazo terminando em até 60 dias" icone={CalendarClock} cor="text-gold-soft" vazio="Nenhum ponto perto do fim do prazo.">
+          <Lista i={9} titulo="Manutenção em aberto" icone={Wrench} cor="text-warn" vazio="Nenhuma ocorrência aberta.">
+            {a.ocorrencias.map((o) => (
+              <li key={o.id} className="flex items-center justify-between gap-3 py-2.5">
+                <Link href={`/ocorrencias/${o.id}`} className="min-w-0 transition-colors hover:text-gold-soft">
+                  <span className="block truncate font-medium">{o.titulo}</span>
+                  <span className="text-xs text-ink-soft">{o.ponto.nome} · aberta em {dateBR(o.abertaEm)} ({diasEntre(o.abertaEm, h)} dias)</span>
+                </Link>
+                <span className={`badge ${o.status === "ABERTA" ? "text-danger" : "text-warn"}`}>{o.status === "ABERTA" ? "Aberta" : "Em andamento"}</span>
+              </li>
+            ))}
+          </Lista>
+        </div>
+
+        <div className="lg:col-span-2">
+          <Lista i={9} titulo="Reajuste anual a aplicar (próximos 30 dias)" icone={Percent} cor="text-gold-soft" vazio="Nenhum contrato com reajuste próximo.">
+            {a.reajustes.map(({ c, devidoEm }) => (
+              <li key={c.id} className="flex items-center justify-between gap-3 py-2.5">
+                <Link href={`/contratos/${c.id}`} className="min-w-0 transition-colors hover:text-gold-soft">
+                  <span className="block truncate font-medium">{c.cliente.nome} · contrato #{c.numero}</span>
+                  <span className="text-xs text-ink-soft">{devidoEm < h ? `atrasado desde ${dateBR(devidoEm)}` : `devido em ${dateBR(devidoEm)}`}</span>
+                </Link>
+              </li>
+            ))}
+          </Lista>
+        </div>
+
+        <div className="lg:col-span-2">
+          <Lista i={10} titulo="Pontos com prazo terminando em até 60 dias" icone={CalendarClock} cor="text-gold-soft" vazio="Nenhum ponto perto do fim do prazo.">
             {a.terminando.map((c) => (
               <li key={`${c.contratoId}-${c.pontoId}`} className="flex items-center justify-between gap-3 py-2.5">
                 <Link href={`/contratos/${c.contratoId}`} className="min-w-0 transition-colors hover:text-gold-soft">

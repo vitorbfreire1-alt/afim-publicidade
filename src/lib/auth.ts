@@ -31,5 +31,14 @@ export async function requireUser(...papeis: Papel[]) {
   return { id: user.id, nome: user.nome, email: user.email, papel: user.papel };
 }
 
+/** Usuário logado e ativo, ou null (para rotas de API, que respondem 401 em vez de redirecionar). */
+export async function getUser() {
+  const session = await getSession();
+  if (!session.userId) return null;
+  const user = await prisma.usuario.findUnique({ where: { id: session.userId } });
+  if (!user || !user.ativo) return null;
+  return { id: user.id, nome: user.nome, email: user.email, papel: user.papel };
+}
+
 export const podeEditarCadastros = (p: Papel) => p === "DONO" || p === "COMERCIAL";
 export const podeReceber = (p: Papel) => p === "DONO" || p === "FINANCEIRO";

@@ -9,20 +9,25 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const user = await requireUser();
 
   const financeiro = user.papel === "DONO" || user.papel === "FINANCEIRO";
-  const items: NavItem[] = [
+  const comercial = user.papel === "DONO" || user.papel === "COMERCIAL";
+  const itens = (...x: (NavItem | false)[]) => x.filter((i): i is NavItem => Boolean(i));
+  const items: NavItem[] = itens(
     { href: "/", label: "Painel", icone: "painel" },
     { href: "/carteira", label: "Carteira", icone: "carteira" },
     { href: "/financeiro", label: "A receber", icone: "financeiro" },
     { href: "/clientes", label: "Clientes", icone: "clientes" },
     { href: "/pontos", label: "Pontos", icone: "pontos" },
-    ...(financeiro
-      ? ([
-          { href: "/despesas", label: "Despesas", icone: "despesas" },
-          { href: "/fluxo", label: "Fluxo", icone: "fluxo" },
-        ] as NavItem[])
-      : []),
-    ...(user.papel === "DONO" ? ([{ href: "/usuarios", label: "Usuários", icone: "usuarios" }] as NavItem[]) : []),
-  ];
+    { href: "/disponibilidade", label: "Disponib.", icone: "disponibilidade" },
+    comercial && { href: "/propostas", label: "Propostas", icone: "propostas" },
+    { href: "/ocorrencias", label: "Manutenção", icone: "manutencao" },
+    financeiro && { href: "/despesas", label: "Despesas", icone: "despesas" },
+    financeiro && { href: "/fluxo", label: "Fluxo", icone: "fluxo" },
+    { href: "/comissoes", label: "Comissões", icone: "comissoes" },
+    financeiro && { href: "/relatorios", label: "Relatórios", icone: "relatorios" },
+    user.papel === "DONO" && { href: "/historico", label: "Histórico", icone: "historico" },
+    user.papel === "DONO" && { href: "/usuarios", label: "Usuários", icone: "usuarios" },
+    user.papel === "DONO" && { href: "/configuracoes", label: "Config.", icone: "config" },
+  );
   const iniciais = user.nome.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase();
 
   return (
@@ -32,8 +37,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <Link href="/" aria-label="Painel" className="mb-8 px-2">
           <Logo />
         </Link>
-        <Nav items={items} variante="lateral" />
-        <form action={logout} className="mt-auto">
+        <div className="-mx-1 min-h-0 flex-1 overflow-y-auto px-1 pb-4">
+          <Nav items={items} variante="lateral" />
+        </div>
+        <form action={logout}>
           <div className="card flex items-center gap-3 p-3">
             <span className="grid size-9 shrink-0 place-items-center rounded-full bg-gradient-to-br from-gold-soft to-gold-deep text-xs font-bold text-black">
               {iniciais}

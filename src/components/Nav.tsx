@@ -5,12 +5,19 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
   Briefcase,
+  CalendarDays,
   ChartNoAxesColumn,
+  FileBarChart,
+  History,
+  Percent,
+  TrendingUp,
+  Wrench,
   CircleDollarSign,
   Ellipsis,
   LayoutDashboard,
   MapPin,
   Receipt,
+  Settings,
   ShieldCheck,
   Users,
   type LucideIcon,
@@ -25,6 +32,13 @@ const ICONES: Record<string, LucideIcon> = {
   usuarios: ShieldCheck,
   despesas: Receipt,
   fluxo: ChartNoAxesColumn,
+  config: Settings,
+  propostas: TrendingUp,
+  comissoes: Percent,
+  disponibilidade: CalendarDays,
+  manutencao: Wrench,
+  relatorios: FileBarChart,
+  historico: History,
 };
 
 export interface NavItem {
@@ -72,7 +86,7 @@ export default function Nav({ items, variante }: { items: NavItem[]; variante: "
 
 function BarraInferior({ items, ativo }: { items: NavItem[]; ativo: (href: string) => boolean }) {
   const [aberto, setAberto] = useState(false);
-  const principais = items.filter((i) => i.principal !== false).slice(0, items.length > 5 ? 4 : 5);
+  const principais = items.slice(0, items.length > 5 ? 4 : 5);
   const extras = items.filter((i) => !principais.includes(i));
   const extraAtivo = extras.some((i) => ativo(i.href));
 
