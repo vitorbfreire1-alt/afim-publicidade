@@ -1,4 +1,4 @@
-import type { FormaPagamento, StatusContrato, TipoMidia } from "@prisma/client";
+import type { CategoriaDespesa, FormaPagamento, StatusContrato, TipoMidia } from "@prisma/client";
 
 export const TIPOS: TipoMidia[] = ["LED", "TOTEM", "TRIEDRO", "OUTDOOR"];
 
@@ -34,3 +34,16 @@ export const STATUS_CONTRATO_LABEL: Record<StatusContrato, string> = {
 };
 
 export const isTipo = (v: unknown): v is TipoMidia => TIPOS.includes(v as TipoMidia);
+
+export const CATEGORIAS: CategoriaDespesa[] = ["ENERGIA", "MANUTENCAO", "ALUGUEL_PONTO", "IMPOSTOS", "COMISSOES", "FOLHA", "MARKETING", "OUTROS"];
+
+export const CATEGORIA_LABEL: Record<CategoriaDespesa, string> = {
+  ENERGIA: "Energia",
+  MANUTENCAO: "Manutenção",
+  ALUGUEL_PONTO: "Aluguel do ponto",
+  IMPOSTOS: "Impostos",
+  COMISSOES: "Comissões",
+  FOLHA: "Folha / equipe",
+  MARKETING: "Marketing",
+  OUTROS: "Outros",
+};

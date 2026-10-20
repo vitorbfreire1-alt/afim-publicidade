@@ -6,7 +6,7 @@ const ESTILO: Record<StatusParcela, { texto: string; cor: string }> = {
   A_VENCER: { texto: "A vencer", cor: "text-warn" },
 };
 
-export default function StatusBadge({ status }: { status: StatusParcela }) {
+export default function StatusBadge({ status, rotulos }: { status: StatusParcela; rotulos?: Partial<Record<StatusParcela, string>> }) {
   const e = ESTILO[status];
-  return <span className={`badge ${e.cor}`}>{e.texto}</span>;
+  return <span className={`badge ${e.cor}`}>{rotulos?.[status] ?? e.texto}</span>;
 }

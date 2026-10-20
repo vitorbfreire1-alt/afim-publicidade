@@ -21,6 +21,10 @@ export default function PontoForm({ ponto, tipoInicial, action, label }: {
         <label className="label" htmlFor="nome">Ponto (nome / local)</label>
         <input className="input" id="nome" name="nome" required defaultValue={ponto?.nome ?? ""} />
       </div>
+      <div>
+        <label className="label" htmlFor="cotas">Cotas (anunciantes ao mesmo tempo)</label>
+        <input className="input" id="cotas" name="cotas" type="number" min={1} max={1000} placeholder="Sem limite" defaultValue={ponto?.cotas ?? ""} />
+      </div>
       <div className="sm:col-span-2">
         <label className="label" htmlFor="endereco">Endereço</label>
         <input className="input" id="endereco" name="endereco" defaultValue={ponto?.endereco ?? ""} />

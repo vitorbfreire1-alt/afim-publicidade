@@ -5,7 +5,7 @@ import MaskedInput from "./MaskedInput";
 
 export interface GrupoPontos {
   titulo: string;
-  pontos: { id: string; nome: string; clientesAtivos: number }[];
+  pontos: { id: string; nome: string; ocupacao: string | null; lotado: boolean }[];
 }
 
 /** Escolha dos pontos do contrato; cada ponto marcado pede o seu valor mensal, início e prazo. */
@@ -41,8 +41,10 @@ export default function PontosDoContrato({ grupos, hojeISO }: { grupos: GrupoPon
                     className="size-4 accent-[#d4a62a]"
                   />
                   {p.nome}
-                  {p.clientesAtivos > 0 && (
-                    <span className="text-xs text-ink-faint">({p.clientesAtivos} cliente(s) ativo(s))</span>
+                  {p.ocupacao && (
+                    <span className={`text-xs ${p.lotado ? "font-semibold text-danger" : "text-ink-faint"}`}>
+                      ({p.ocupacao}{p.lotado && " · lotado"})
+                    </span>
                   )}
                 </label>
                 {ligado && (

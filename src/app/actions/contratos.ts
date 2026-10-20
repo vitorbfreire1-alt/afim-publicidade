@@ -6,6 +6,7 @@ import type { FormaPagamento } from "@prisma/client";
 import { msg } from "@/components/Flash";
 import { requireUser } from "@/lib/auth";
 import { choqueComRecebida, recalcularPeriodo, somarParcelas } from "@/lib/contrato";
+import { janelaDeRenovacao, verificarCotas } from "@/lib/cotas";
 import { agregarParcelas, calcularFim, gerarParcelas } from "@/lib/financeiro";
 import { data, inteiro, texto } from "@/lib/form";
 import { dateBR, parseMoney } from "@/lib/format";
@@ -59,6 +60,9 @@ export async function criarContrato(fd: FormData) {
   }));
   const time = (d: Date) => d.getTime();
 
+  const lotado = await verificarCotas(comFim);
+  if (lotado) volta(lotado);
+
   const contrato = await prisma.contrato.create({
     data: {
       clienteId,
@@ -107,6 +111,8 @@ export async function adicionarPonto(contratoId: string, fd: FormData) {
   if (contrato!.pontos.some((p) => p.pontoId === pontoId)) volta("Esse ponto já está no contrato. Use Renovar para estender o prazo.");
 
   const novas = gerarParcelas(inicio!, prazoMeses, contrato!.diaVencimento, valor);
+  const lotado = await verificarCotas([{ pontoId, inicio: inicio!, fim: calcularFim(inicio!, prazoMeses) }], contratoId);
+  if (lotado) volta(lotado);
   const choque = choqueComRecebida(novas, contrato!.parcelas);
   if (choque) volta(`O ponto começaria cobrando em ${dateBR(choque.vencimento)}, mês que já foi recebido. Escolha um início posterior.`);
 
@@ -143,6 +149,9 @@ export async function renovarPonto(contratoId: string, pontoId: string, fd: Form
   if (prazoNovo > 240) volta("O prazo total ficaria longo demais.");
   // Só as cobranças dos meses acrescentados entram no calendário.
   const acrescimo = gerarParcelas(cp!.inicio, prazoNovo, cp!.contrato.diaVencimento, valor).slice(cp!.prazoMeses);
+  const janela = janelaDeRenovacao(cp!.fim, calcularFim(cp!.inicio, prazoNovo));
+  const lotado = await verificarCotas([{ pontoId, ...janela }], contratoId);
+  if (lotado) volta(lotado);
   const choque = choqueComRecebida(acrescimo, cp!.contrato.parcelas);
   if (choque) volta(`A renovação cobraria em ${dateBR(choque.vencimento)}, mês que já foi recebido.`);
 

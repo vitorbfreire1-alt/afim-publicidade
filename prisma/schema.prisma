@@ -27,6 +27,17 @@ enum StatusContrato {
   CANCELADO
 }
 
+enum CategoriaDespesa {
+  ENERGIA
+  MANUTENCAO
+  ALUGUEL_PONTO
+  IMPOSTOS
+  COMISSOES
+  FOLHA
+  MARKETING
+  OUTROS
+}
+
 enum FormaPagamento {
   PIX
   BOLETO
@@ -66,9 +77,12 @@ model Ponto {
   nome        String // "Ponto do LED": nome/local de instalação
   endereco    String?
   observacoes String?
+  // Quantos anunciantes cabem ao mesmo tempo no ponto; nulo = sem limite.
+  cotas       Int?
   ativo       Boolean         @default(true)
   criadoEm    DateTime        @default(now())
   contratos   ContratoPonto[]
+  despesas    Despesa[]
 }
 
 model Contrato {
@@ -121,6 +135,27 @@ model Parcela {
   observacoes   String?
 
   @@unique([contratoId, numero])
+  @@index([vencimento])
+  @@index([pagoEm])
+}
+
+// Conta a pagar. Pode estar ligada a um ponto (aluguel do local, energia, manutenção) para medir o lucro por ponto.
+model Despesa {
+  id          String           @id @default(cuid())
+  descricao   String
+  categoria   CategoriaDespesa @default(OUTROS)
+  fornecedor  String?
+  pontoId     String?
+  ponto       Ponto?           @relation(fields: [pontoId], references: [id], onDelete: SetNull)
+  valor       Decimal          @db.Decimal(12, 2)
+  vencimento  DateTime         @db.Date
+  pagoEm      DateTime?        @db.Date
+  valorPago   Decimal?         @db.Decimal(12, 2)
+  observacoes String?
+  // Despesas criadas juntas pela repetição mensal compartilham o mesmo grupo.
+  grupo       String?
+  criadoEm    DateTime         @default(now())
+
   @@index([vencimento])
   @@index([pagoEm])
 }

@@ -11,12 +11,13 @@ export const metadata = { title: "Novo contrato" };
 
 export default async function NovoContrato({ searchParams }: { searchParams: Promise<{ erro?: string; cliente?: string }> }) {
   const [, { erro, cliente }] = await Promise.all([requireUser("COMERCIAL"), searchParams]);
+  const h = hoje();
   const [clientes, pontos] = await Promise.all([
     prisma.cliente.findMany({ where: { ativo: true }, orderBy: { nome: "asc" } }),
     prisma.ponto.findMany({
       where: { ativo: true },
       orderBy: { nome: "asc" },
-      include: { _count: { select: { contratos: { where: { contrato: { status: "ATIVO" } } } } } },
+      include: { contratos: { where: { contrato: { status: "ATIVO" } }, select: { inicio: true, fim: true } } },
     }),
   ]);
 
@@ -39,7 +40,10 @@ export default async function NovoContrato({ searchParams }: { searchParams: Pro
             titulo: TIPO_LABEL[t],
             pontos: pontos
               .filter((p) => p.tipo === t)
-              .map((p) => ({ id: p.id, nome: p.nome, clientesAtivos: p._count.contratos })),
+              .map((p) => {
+                const agora = p.contratos.filter((c) => c.inicio <= h && h <= c.fim).length;
+                return { id: p.id, nome: p.nome, ocupacao: p.cotas ? `${agora}/${p.cotas} cotas hoje` : agora > 0 ? `${agora} cliente(s) hoje` : null, lotado: Boolean(p.cotas && agora >= p.cotas) };
+              }),
           })).filter((g) => g.pontos.length > 0)}
         />
 

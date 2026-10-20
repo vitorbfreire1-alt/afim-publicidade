@@ -10,7 +10,10 @@ import { prisma } from "@/lib/prisma";
 
 function dados(fd: FormData) {
   const tipo = String(fd.get("tipo") ?? "");
+  const cotasBruto = String(fd.get("cotas") ?? "").trim();
+  const cotas = cotasBruto ? Number(cotasBruto) : null;
   return {
+    cotas: cotas !== null && Number.isInteger(cotas) && cotas >= 1 && cotas <= 1000 ? cotas : null,
     tipo: isTipo(tipo) ? tipo : null,
     nome: String(fd.get("nome") ?? "").trim(),
     endereco: texto(fd, "endereco"),

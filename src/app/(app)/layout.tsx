@@ -8,13 +8,20 @@ import { PAPEL_LABEL, requireUser } from "@/lib/auth";
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
 
+  const financeiro = user.papel === "DONO" || user.papel === "FINANCEIRO";
   const items: NavItem[] = [
     { href: "/", label: "Painel", icone: "painel" },
     { href: "/carteira", label: "Carteira", icone: "carteira" },
-    { href: "/financeiro", label: "Financeiro", icone: "financeiro" },
+    { href: "/financeiro", label: "A receber", icone: "financeiro" },
     { href: "/clientes", label: "Clientes", icone: "clientes" },
     { href: "/pontos", label: "Pontos", icone: "pontos" },
-    ...(user.papel === "DONO" ? [{ href: "/usuarios", label: "Usuários", icone: "usuarios" } as NavItem] : []),
+    ...(financeiro
+      ? ([
+          { href: "/despesas", label: "Despesas", icone: "despesas" },
+          { href: "/fluxo", label: "Fluxo", icone: "fluxo" },
+        ] as NavItem[])
+      : []),
+    ...(user.papel === "DONO" ? ([{ href: "/usuarios", label: "Usuários", icone: "usuarios" }] as NavItem[]) : []),
   ];
   const iniciais = user.nome.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase();
 

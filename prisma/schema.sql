@@ -11,6 +11,9 @@ CREATE TYPE "TipoMidia" AS ENUM ('LED', 'TOTEM', 'TRIEDRO', 'OUTDOOR');
 CREATE TYPE "StatusContrato" AS ENUM ('ATIVO', 'ENCERRADO', 'CANCELADO');
 
 -- CreateEnum
+CREATE TYPE "CategoriaDespesa" AS ENUM ('ENERGIA', 'MANUTENCAO', 'ALUGUEL_PONTO', 'IMPOSTOS', 'COMISSOES', 'FOLHA', 'MARKETING', 'OUTROS');
+
+-- CreateEnum
 CREATE TYPE "FormaPagamento" AS ENUM ('PIX', 'BOLETO', 'TRANSFERENCIA', 'CARTAO', 'DINHEIRO', 'OUTRO');
 
 -- CreateTable
@@ -48,6 +51,7 @@ CREATE TABLE "Ponto" (
     "nome" TEXT NOT NULL,
     "endereco" TEXT,
     "observacoes" TEXT,
+    "cotas" INTEGER,
     "ativo" BOOLEAN NOT NULL DEFAULT true,
     "criadoEm" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -97,6 +101,24 @@ CREATE TABLE "Parcela" (
     CONSTRAINT "Parcela_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "Despesa" (
+    "id" TEXT NOT NULL,
+    "descricao" TEXT NOT NULL,
+    "categoria" "CategoriaDespesa" NOT NULL DEFAULT 'OUTROS',
+    "fornecedor" TEXT,
+    "pontoId" TEXT,
+    "valor" DECIMAL(12,2) NOT NULL,
+    "vencimento" DATE NOT NULL,
+    "pagoEm" DATE,
+    "valorPago" DECIMAL(12,2),
+    "observacoes" TEXT,
+    "grupo" TEXT,
+    "criadoEm" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Despesa_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "Usuario_email_key" ON "Usuario"("email");
 
@@ -121,6 +143,12 @@ CREATE INDEX "Parcela_pagoEm_idx" ON "Parcela"("pagoEm");
 -- CreateIndex
 CREATE UNIQUE INDEX "Parcela_contratoId_numero_key" ON "Parcela"("contratoId", "numero");
 
+-- CreateIndex
+CREATE INDEX "Despesa_vencimento_idx" ON "Despesa"("vencimento");
+
+-- CreateIndex
+CREATE INDEX "Despesa_pagoEm_idx" ON "Despesa"("pagoEm");
+
 -- AddForeignKey
 ALTER TABLE "Contrato" ADD CONSTRAINT "Contrato_clienteId_fkey" FOREIGN KEY ("clienteId") REFERENCES "Cliente"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
@@ -132,4 +160,7 @@ ALTER TABLE "ContratoPonto" ADD CONSTRAINT "ContratoPonto_pontoId_fkey" FOREIGN 
 
 -- AddForeignKey
 ALTER TABLE "Parcela" ADD CONSTRAINT "Parcela_contratoId_fkey" FOREIGN KEY ("contratoId") REFERENCES "Contrato"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Despesa" ADD CONSTRAINT "Despesa_pontoId_fkey" FOREIGN KEY ("pontoId") REFERENCES "Ponto"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 

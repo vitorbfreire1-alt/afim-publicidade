@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarClock, CircleDollarSign, Gauge, TriangleAlert, TrendingUp, FileText } from "lucide-react";
+import { CalendarClock, CircleDollarSign, FileText, Gauge, Receipt, TriangleAlert, TrendingDown, TrendingUp } from "lucide-react";
 import Flash from "@/components/Flash";
 import FluxoMensal from "@/components/FluxoMensal";
 import { requireUser } from "@/lib/auth";
@@ -59,6 +59,8 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
   const [user, { erro, ok }] = await Promise.all([requireUser(), searchParams]);
   const [r, a, fluxo] = await Promise.all([resumoFinanceiro(), alertas(), fluxoMensal()]);
   const h = hoje();
+  const financeiro = user.papel === "DONO" || user.papel === "FINANCEIRO";
+  const resultado = r.recebidoMes - r.despesasPagasMes;
   const ocupacao = r.pontosTotal ? Math.round((r.pontosOcupados / r.pontosTotal) * 100) : 0;
   const hora = Number(new Intl.DateTimeFormat("pt-BR", { hour: "numeric", hour12: false, timeZone: "America/Sao_Paulo" }).format(new Date()));
   const saudacao = hora < 12 ? "Bom dia" : hora < 18 ? "Boa tarde" : "Boa noite";
@@ -73,11 +75,13 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
         </h1>
       </header>
 
-      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
+      <section className={`grid grid-cols-2 gap-3 lg:gap-4 ${financeiro ? "lg:grid-cols-3" : "lg:grid-cols-4"}`}>
         <Kpi i={1} icone={TriangleAlert} label="Inadimplência" value={money(r.inadimplencia)} sub={`${r.parcelasEmAtraso} parcela(s) em atraso`} tom={r.inadimplencia > 0 ? "perigo" : "bom"} />
         <Kpi i={2} icone={CircleDollarSign} label="Recebido no mês" value={money(r.recebidoMes)} sub={`Previsto: ${money(r.previstoMes)}`} />
-        <Kpi i={3} icone={FileText} label="Contratos ativos" value={String(r.contratosAtivos)} />
-        <Kpi i={4} icone={Gauge} label="Pontos com clientes" value={`${ocupacao}%`} sub={`${r.pontosOcupados} de ${r.pontosTotal} com contrato ativo`} />
+        {financeiro && <Kpi i={3} icone={Receipt} label="Despesas pagas no mês" value={money(r.despesasPagasMes)} sub={`A pagar até o fim do mês: ${money(r.despesasAPagar)}`} tom="perigo" />}
+        {financeiro && <Kpi i={4} icone={resultado >= 0 ? TrendingUp : TrendingDown} label="Resultado do mês" value={money(resultado)} sub="Recebido − despesas pagas" tom={resultado >= 0 ? "bom" : "perigo"} />}
+        <Kpi i={5} icone={FileText} label="Contratos ativos" value={String(r.contratosAtivos)} />
+        <Kpi i={6} icone={Gauge} label="Pontos com clientes" value={`${ocupacao}%`} sub={`${r.pontosOcupados} de ${r.pontosTotal} com contrato ativo`} />
       </section>
 
       <section className="card rise mt-4 p-5 lg:mt-5 lg:p-6" style={{ ["--i" as string]: 5 }}>
@@ -114,8 +118,26 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
           ))}
         </Lista>
 
+        {financeiro && (
+          <div className="lg:col-span-2">
+            <Lista i={8} titulo="Despesas vencidas ou vencendo em 7 dias" icone={Receipt} cor="text-warn" vazio="Nenhuma despesa pendente.">
+              {a.despesas.map((d) => (
+                <li key={d.id} className="flex items-center justify-between gap-3 py-2.5">
+                  <Link href="/despesas?f=atraso" className="min-w-0 transition-colors hover:text-gold-soft">
+                    <span className="block truncate font-medium">{d.descricao}</span>
+                    <span className="text-xs text-ink-soft">
+                      {d.vencimento < h ? `venceu ${dateBR(d.vencimento)} (${diasEntre(d.vencimento, h)} dias)` : `vence ${dateBR(d.vencimento)}`}
+                    </span>
+                  </Link>
+                  <span className="shrink-0 font-semibold tabular-nums">{money(d.valor)}</span>
+                </li>
+              ))}
+            </Lista>
+          </div>
+        )}
+
         <div className="lg:col-span-2">
-          <Lista i={8} titulo="Pontos com prazo terminando em até 60 dias" icone={CalendarClock} cor="text-gold-soft" vazio="Nenhum ponto perto do fim do prazo.">
+          <Lista i={9} titulo="Pontos com prazo terminando em até 60 dias" icone={CalendarClock} cor="text-gold-soft" vazio="Nenhum ponto perto do fim do prazo.">
             {a.terminando.map((c) => (
               <li key={`${c.contratoId}-${c.pontoId}`} className="flex items-center justify-between gap-3 py-2.5">
                 <Link href={`/contratos/${c.contratoId}`} className="min-w-0 transition-colors hover:text-gold-soft">

@@ -9,6 +9,10 @@ Sistema web (funciona no computador e no celular) para a locação de painéis d
 - **Contratos** — ao criar, o sistema gera as parcelas mensais conforme prazo e dia de vencimento.
 - **Financeiro** — registrar recebimento (data, valor, forma), desfazer, ver o que está em atraso, a vencer e recebido.
 - **Painel com alertas** — inadimplência, recebido x previsto do mês, ocupação dos pontos, parcelas em atraso, vencimentos dos próximos 7 dias e contratos terminando em 60 dias.
+- **Despesas** — contas a pagar por categoria (energia, aluguel do ponto, manutenção, impostos...), com repetição mensal, pagamento, ligação opcional a um ponto e alerta no painel.
+- **Fluxo de caixa** — entradas e saídas mês a mês (previsto pelo vencimento, realizado pela data de pagamento), com gráfico, resultado e acumulado.
+- **Cotas por ponto** — limite de anunciantes simultâneos; o sistema bloqueia contratos que lotariam o ponto no período.
+- **Renovar e adicionar pontos** a contratos existentes, e **cobrança por WhatsApp** com mensagem pronta.
 - **Usuários com perfis** — Dono (tudo), Financeiro (registra recebimentos), Comercial (clientes, pontos e contratos).
 
 Por enquanto só registra: não emite contratos, recibos nem boletos.
@@ -22,7 +26,7 @@ Next.js (App Router) + TypeScript + Tailwind CSS · Prisma + PostgreSQL (Supabas
 ```bash
 npm install
 cp .env.example .env     # preencha DATABASE_URL, DIRECT_URL, SESSION_SECRET e SEED_*
-npx prisma db push       # cria as tabelas
+npx prisma db push       # cria as tabelas (ou rode prisma/schema.sql no SQL Editor do Supabase)
 npm run seed             # cria o usuário dono
 npm run dev
 ```
