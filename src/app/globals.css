@@ -125,6 +125,20 @@ h1 {
   font-size: 1rem; /* 16px evita zoom automático do iOS */
   transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
 }
+/* Lista de opções dos selects: sem isso o navegador usa fundo branco com texto claro (ilegível). */
+select.input {
+  color-scheme: dark;
+}
+.input option,
+.input optgroup {
+  background-color: #15151b;
+  color: var(--ink);
+}
+.input option:checked,
+.input option:hover {
+  background-color: #3a2f12;
+  color: var(--gold-soft);
+}
 .input::placeholder {
   color: var(--ink-faint);
 }
