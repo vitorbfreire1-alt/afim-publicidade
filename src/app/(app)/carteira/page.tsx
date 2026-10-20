@@ -1,5 +1,6 @@
 import Link from "next/link";
 import AbrirLink from "@/components/AbrirLink";
+import SeloVencimento from "@/components/SeloVencimento";
 import { pode, requireUser } from "@/lib/auth";
 import { atrasoDoPonto, statusParcela } from "@/lib/financeiro";
 import { dateBR, hoje, money } from "@/lib/format";
@@ -82,6 +83,7 @@ export default async function Carteira({ searchParams }: { searchParams: Promise
                 <td className="whitespace-nowrap">
                   {dateBR(cp.inicio)}
                   <span className="block text-xs text-ink-faint">até {dateBR(cp.fim)}</span>
+                  <SeloVencimento fim={cp.fim} />
                 </td>
                 {v && <><td>{cp.contrato.diaVencimento}</td>
                 <td className={`whitespace-nowrap ${recebimento.cor}`}>

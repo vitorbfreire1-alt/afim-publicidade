@@ -435,3 +435,18 @@ body:has(.doc)::before {
     display: none !important;
   }
 }
+
+/* Selo de contrato prestes a vencer (até 15 dias): pisca para chamar a atenção. */
+.selo-critico {
+  animation: selo-pisca 1.3s ease-in-out infinite;
+}
+@keyframes selo-pisca {
+  50% {
+    opacity: 0.45;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .selo-critico {
+    animation: none;
+  }
+}

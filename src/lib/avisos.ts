@@ -2,6 +2,7 @@ import { alertas, filtroDespesaEmAtraso } from "@/lib/financeiro";
 import { addDias, hoje, money } from "@/lib/format";
 import { pode, type UsuarioLogado } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { diasRestantes, textoPrazo } from "@/lib/vencimento";
 import type { AvisoPush } from "@/lib/push";
 
 const plural = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um : varios}`;
@@ -30,8 +31,27 @@ export async function resumoDoDia(user: UsuarioLogado): Promise<AvisoPush | null
     if (proximas) linhas.push(`${plural(proximas, "despesa vence", "despesas vencem")} em até 3 dias`);
   }
   if (pode(user, "carteira")) {
-    const terminando = a.terminando.filter((c) => c.fim <= addDias(h, 30)).length;
-    if (terminando) linhas.push(`${plural(terminando, "contrato termina", "contratos terminam")} em até 30 dias`);
+    // Fim de contrato: aviso nos marcos de 60, 30 e 15 dias e todo dia na última semana (e na semana seguinte ao fim).
+    const fins = await prisma.contratoPonto.findMany({
+      where: { contrato: { status: "ATIVO" }, fim: { gte: addDias(h, -7), lte: addDias(h, 60) } },
+      include: { contrato: { include: { cliente: true } } },
+      orderBy: { fim: "asc" },
+    });
+    const hoje_ = fins.filter((c) => {
+      const d = diasRestantes(c.fim, h);
+      return d <= 7 || d === 15 || d === 30 || d === 60;
+    });
+    if (hoje_.length) {
+      const primeiro = hoje_[0];
+      const d = diasRestantes(primeiro.fim, h);
+      const nome = primeiro.contrato.cliente.nome;
+      linhas.push(
+        hoje_.length === 1
+          ? `Contrato de ${nome} ${textoPrazo(d)}`
+          : `${hoje_.length} contratos para renovar (o mais próximo: ${nome}, ${textoPrazo(d)})`,
+      );
+      if (url === "/") url = "/renovacoes";
+    }
   }
   if (pode(user, "manutencao") && a.ocorrencias.length) {
     linhas.push(`${plural(a.ocorrencias.length, "ocorrência aberta", "ocorrências abertas")}`);

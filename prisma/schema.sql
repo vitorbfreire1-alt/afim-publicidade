@@ -14,6 +14,9 @@ CREATE TYPE "StatusContrato" AS ENUM ('ATIVO', 'ENCERRADO', 'CANCELADO');
 CREATE TYPE "CategoriaDespesa" AS ENUM ('ENERGIA', 'MANUTENCAO', 'ALUGUEL_PONTO', 'IMPOSTOS', 'COMISSOES', 'FOLHA', 'MARKETING', 'PRODUCAO', 'OUTROS');
 
 -- CreateEnum
+CREATE TYPE "StatusRenovacao" AS ENUM ('A_CONTATAR', 'EM_NEGOCIACAO', 'VAI_RENOVAR', 'NAO_RENOVA');
+
+-- CreateEnum
 CREATE TYPE "CustoItem" AS ENUM ('IMPRESSAO', 'LONA', 'COLAGEM', 'MONTAGEM', 'RASPAGEM');
 
 -- CreateEnum
@@ -113,6 +116,7 @@ CREATE TABLE "ContratoPonto" (
     "inicio" DATE NOT NULL,
     "prazoMeses" INTEGER NOT NULL,
     "fim" DATE NOT NULL,
+    "renovacao" "StatusRenovacao" NOT NULL DEFAULT 'A_CONTATAR',
 
     CONSTRAINT "ContratoPonto_pkey" PRIMARY KEY ("contratoId","pontoId")
 );

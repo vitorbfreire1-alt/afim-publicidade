@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { MapPin, Wrench } from "lucide-react";
 import Anexos from "@/components/Anexos";
 import Flash from "@/components/Flash";
+import SeloVencimento from "@/components/SeloVencimento";
 import PontoForm from "@/components/PontoForm";
 import { lancarCustosPonto } from "@/app/actions/custos";
 import { alternarPonto, atualizarPonto } from "@/app/actions/pontos";
@@ -100,7 +101,7 @@ export default async function PontoPage({ params, searchParams }: {
                   <td className="font-medium">{cp.contrato.cliente.nome}</td>
                   <td>{verContratos ? <Link className="text-gold" href={`/contratos/${cp.contratoId}`}>#{cp.contrato.numero}</Link> : `#${cp.contrato.numero}`}</td>
                   {v && <td>{money(cp.valor)}</td>}
-                  <td className="whitespace-nowrap">{dateBR(cp.inicio)} – {dateBR(cp.fim)}</td>
+                  <td className="whitespace-nowrap">{dateBR(cp.inicio)} – {dateBR(cp.fim)} <SeloVencimento fim={cp.fim} ativo={cp.contrato.status === "ATIVO"} /></td>
                   <td>{STATUS_CONTRATO_LABEL[cp.contrato.status]}</td>
                 </tr>
               ))}

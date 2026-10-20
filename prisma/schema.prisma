@@ -48,6 +48,14 @@ enum CustoItem {
   RASPAGEM
 }
 
+// Andamento da conversa de renovação de um ponto de contrato que está para terminar.
+enum StatusRenovacao {
+  A_CONTATAR
+  EM_NEGOCIACAO
+  VAI_RENOVAR
+  NAO_RENOVA
+}
+
 enum StatusProposta {
   ENVIADA
   NEGOCIANDO
@@ -193,6 +201,8 @@ model ContratoPonto {
   inicio     DateTime @db.Date
   prazoMeses Int
   fim        DateTime @db.Date
+  // Conversa de renovação (volta a "A contatar" quando o ponto é renovado).
+  renovacao  StatusRenovacao @default(A_CONTATAR)
 
   @@id([contratoId, pontoId])
   @@index([pontoId])

@@ -33,3 +33,13 @@ export function linkCobranca({ cliente, numero, total, vencimento, valor, atuali
 
   return `https://wa.me/${fone}?text=${encodeURIComponent(texto)}`;
 }
+
+/** Link do WhatsApp para combinar a renovação de um ponto que está para terminar. */
+export function linkRenovacao(cliente: { nome: string; contato: string | null; telefone: string | null }, ponto: string, fim: Date): string | null {
+  const fone = telefoneWhatsapp(cliente.telefone);
+  if (!fone) return null;
+  const dias = diasEntre(hoje(), fim);
+  const quando = dias < 0 ? `terminou em ${dateBR(fim)}` : `termina em ${dateBR(fim)}`;
+  const texto = `Olá, ${cliente.contato || cliente.nome}! Tudo bem? Aqui é da AFIM Publicidade. O seu contrato no ponto ${ponto} ${quando}. Podemos conversar sobre a renovação? Obrigado!`;
+  return `https://wa.me/${fone}?text=${encodeURIComponent(texto)}`;
+}

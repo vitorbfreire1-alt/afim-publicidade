@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { CalendarClock, Percent, Wrench, CircleDollarSign, FileText, Gauge, Receipt, TriangleAlert, TrendingDown, TrendingUp } from "lucide-react";
 import Flash from "@/components/Flash";
+import BannerVencimentos from "@/components/BannerVencimentos";
 import FluxoMensal from "@/components/FluxoMensal";
 import { pode, requireUser } from "@/lib/auth";
 import { alertas, fluxoMensal, resumoFinanceiro } from "@/lib/financeiro";
 import { chaveDoMes } from "@/lib/indicadores";
 import { prisma } from "@/lib/prisma";
-import { dateBR, diasEntre, hoje, money } from "@/lib/format";
+import { LIMITES, diasRestantes } from "@/lib/vencimento";
+import { addDias, dateBR, diasEntre, hoje, money } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -61,6 +63,17 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
   const [user, { erro, ok }] = await Promise.all([requireUser(), searchParams]);
   const [r, a, fluxo, meta] = await Promise.all([resumoFinanceiro(), alertas(), fluxoMensal(), prisma.meta.findUnique({ where: { mes: chaveDoMes(hoje()) } })]);
   const h = hoje();
+  const vCarteira0 = pode(user, "carteira");
+  const vencendo = vCarteira0
+    ? await prisma.contratoPonto.findMany({
+        where: { contrato: { status: "ATIVO" }, fim: { gte: addDias(h, -30), lte: addDias(h, LIMITES.atencao) } },
+        select: { valor: true, fim: true, contrato: { select: { formaPagamento: true } } },
+      })
+    : [];
+  const faixas = [LIMITES.critico, LIMITES.alerta, LIMITES.atencao].map((ate) => {
+    const doGrupo = vencendo.filter((x) => diasRestantes(x.fim, h) <= ate);
+    return { ate, quantidade: doGrupo.length, valor: doGrupo.filter((x) => x.contrato.formaPagamento !== "PERMUTA").reduce((s, x) => s + Number(x.valor), 0) };
+  });
   const vReceber = pode(user, "receber");
   const vDespesas = pode(user, "despesas");
   const vMetas = pode(user, "metas");
@@ -83,6 +96,8 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
           {saudacao}, <span className="text-grad">{user.nome.split(" ")[0]}</span>
         </h1>
       </header>
+
+      {vCarteira0 && <BannerVencimentos faixas={faixas} verValores={pode(user, "valores")} />}
 
       {nKpis === 0 && !vManut && !vCarteira && <p className="card p-5 text-sm text-ink-soft">Use o menu para acessar as áreas liberadas para você.</p>}
 

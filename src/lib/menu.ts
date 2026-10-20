@@ -31,6 +31,7 @@ export function montarMenu(user: { papel: Papel; permissoes: readonly string[] }
       icone: "comercial",
       abas: [
         ...aba(ok("carteira"), { href: "/carteira", label: "Carteira", tambem: ["/contratos"] }),
+        ...aba(ok("carteira"), { href: "/renovacoes", label: "Renovações" }),
         ...aba(ok("clientes"), { href: "/clientes", label: "Clientes" }),
         ...aba(ok("propostas"), { href: "/propostas", label: "Propostas" }),
       ],

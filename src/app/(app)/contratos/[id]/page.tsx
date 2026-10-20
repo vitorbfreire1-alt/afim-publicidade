@@ -13,6 +13,7 @@ import { adicionarPonto, alterarValorPonto, aplicarReajuste, editarContrato, edi
 import { desativarLinkPublico, gerarLinkPublico } from "@/app/actions/publico";
 import FormAcordo from "@/components/FormAcordo";
 import { pode, requireUser } from "@/lib/auth";
+import SeloVencimento from "@/components/SeloVencimento";
 import { FORMAS_CONTRATO, FORMA_LABEL as FORMA_ROTULO } from "@/lib/labels";
 import { statusParcela, valorMensalAtual } from "@/lib/financeiro";
 import { addDias, dateBR, hoje, isoDate, money } from "@/lib/format";
@@ -108,7 +109,7 @@ export default async function ContratoPage({ params, searchParams }: {
           </div>
         </div>
         <section className="card mb-6 grid gap-4 p-4 sm:grid-cols-2">
-          <div><p className="label">Período</p><p>{dateBR(c.inicio)} a {dateBR(c.fim)}</p></div>
+          <div><p className="label">Período</p><p>{dateBR(c.inicio)} a {dateBR(c.fim)}</p><SeloVencimento fim={c.fim} ativo={c.status === "ATIVO"} /></div>
           <div><p className="label">Vendedor</p><p>{c.vendedor?.nome ?? "—"}</p></div>
           {c.observacoes && <p className="text-sm text-ink-soft sm:col-span-2">{c.observacoes}</p>}
         </section>
@@ -123,7 +124,7 @@ export default async function ContratoPage({ params, searchParams }: {
                   <td>{TIPO_SINGULAR[cp.ponto.tipo]}</td>
                   <td>{dateBR(cp.inicio)}</td>
                   <td>{cp.prazoMeses} meses</td>
-                  <td>{dateBR(cp.fim)}</td>
+                  <td className="whitespace-nowrap">{dateBR(cp.fim)} <SeloVencimento fim={cp.fim} ativo={c.status === "ATIVO"} /></td>
                 </tr>
               ))}
             </tbody>

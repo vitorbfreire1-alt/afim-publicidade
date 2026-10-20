@@ -174,7 +174,7 @@ export async function renovarPonto(contratoId: string, pontoId: string, fd: Form
   await prisma.$transaction(async (tx) => {
     await tx.contratoPonto.update({
       where: { contratoId_pontoId: { contratoId, pontoId } },
-      data: { prazoMeses: prazoNovo, fim: calcularFim(cp!.inicio, prazoNovo), valor },
+      data: { prazoMeses: prazoNovo, fim: calcularFim(cp!.inicio, prazoNovo), valor, renovacao: "A_CONTATAR" },
     });
     await somarParcelas(tx, contratoId, acrescimo);
     await recalcularPeriodo(tx, contratoId);

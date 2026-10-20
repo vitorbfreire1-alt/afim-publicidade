@@ -7,6 +7,7 @@ import { alternarCliente, atualizarCliente } from "@/app/actions/clientes";
 import { mudarStatusContrato } from "@/app/actions/contratos";
 import { pode, requireUser } from "@/lib/auth";
 import { filtroEmAtraso, valorMensalAtual } from "@/lib/financeiro";
+import SeloVencimento from "@/components/SeloVencimento";
 import { dateBR, money } from "@/lib/format";
 import { STATUS_CONTRATO_LABEL } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
@@ -71,7 +72,7 @@ export default async function ClientePage({ params, searchParams }: {
                 <td><Link className="font-medium text-gold" href={`/contratos/${c.id}`}>#{c.numero}</Link></td>
                 <td>{c.pontos.map((p) => p.ponto.nome).join(", ")}</td>
                 {v && <td>{money(valorMensalAtual(c.pontos))}</td>}
-                <td className="whitespace-nowrap">{dateBR(c.inicio)} – {dateBR(c.fim)}</td>
+                <td className="whitespace-nowrap">{dateBR(c.inicio)} – {dateBR(c.fim)} <SeloVencimento fim={c.fim} ativo={c.status === "ATIVO"} /></td>
                 <td>{STATUS_CONTRATO_LABEL[c.status]}</td>
                 {edita && (
                   <td>
