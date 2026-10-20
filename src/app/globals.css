@@ -407,3 +407,30 @@ body:has(.doc)::before {
     animation: none;
   }
 }
+
+/* Tabelas largas (carteira): células mais justas para caber sem rolar em telas de notebook. */
+.table-compact th,
+.table-compact td {
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+}
+
+/* Coluna de ação fixa à direita: o botão "Abrir" continua visível quando a tabela rola para o lado (celular). */
+.table th.col-acao,
+.table td.col-acao,
+.table tfoot td.col-acao {
+  position: sticky;
+  right: 0;
+  z-index: 1;
+  text-align: right;
+  background: #101015;
+  box-shadow: -12px 0 14px -10px rgba(0, 0, 0, 0.9);
+}
+.table tbody tr:hover td.col-acao {
+  background: #17150f;
+}
+@media print {
+  .col-acao {
+    display: none !important;
+  }
+}

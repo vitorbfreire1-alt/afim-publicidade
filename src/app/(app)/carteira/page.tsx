@@ -1,4 +1,5 @@
 import Link from "next/link";
+import AbrirLink from "@/components/AbrirLink";
 import { podeEditarCadastros, requireUser } from "@/lib/auth";
 import { atrasoDoPonto, statusParcela } from "@/lib/financeiro";
 import { dateBR, hoje, money } from "@/lib/format";
@@ -61,15 +62,15 @@ export default async function Carteira({ searchParams }: { searchParams: Promise
       </div>
 
       <div className="card table-wrap">
-        <table className="table">
+        <table className="table table-compact">
           <thead>
             <tr>
               <th>Nº</th><th>Cliente / Empresa</th><th>Ponto</th><th>Valor mensal</th><th>Pagamento</th>
-              <th>Prazo</th><th>Dia venc.</th><th>Recebimento</th><th>Inadimplência</th>
+              <th>Prazo</th><th>Dia venc.</th><th>Recebimento</th><th>Inadimplência</th><th className="col-acao"><span className="sr-only">Ação</span></th>
             </tr>
           </thead>
           <tbody>
-            {linhas.length === 0 && <tr><td colSpan={9} className="text-ink-soft">Nenhum contrato ativo nesta carteira.</td></tr>}
+            {linhas.length === 0 && <tr><td colSpan={10} className="text-ink-soft">Nenhum contrato ativo nesta carteira.</td></tr>}
             {linhas.map(({ cp, recebimento, inadimplencia }) => (
               <tr key={`${cp.contratoId}-${cp.pontoId}`}>
                 <td><Link className="font-medium text-gold" href={`/contratos/${cp.contratoId}`}>{cp.contrato.numero}</Link></td>
@@ -87,6 +88,7 @@ export default async function Carteira({ searchParams }: { searchParams: Promise
                   {recebimento.sub && <span className="block text-xs text-ink-faint">{recebimento.sub}</span>}
                 </td>
                 <td className={inadimplencia ? "font-semibold text-danger" : ""}>{money(inadimplencia)}</td>
+                <td className="col-acao"><AbrirLink href={`/contratos/${cp.contratoId}`} rotulo={`Abrir contrato ${cp.contrato.numero} de ${cp.contrato.cliente.nome}`} /></td>
               </tr>
             ))}
           </tbody>
@@ -97,6 +99,7 @@ export default async function Carteira({ searchParams }: { searchParams: Promise
                 <td className="font-semibold">{money(totalMensal)}</td>
                 <td colSpan={4}></td>
                 <td className="font-semibold text-danger">{money(totalInad)}</td>
+                <td className="col-acao"></td>
               </tr>
             </tfoot>
           )}

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import AbrirLink from "@/components/AbrirLink";
 import BotaoWhatsapp from "@/components/BotaoWhatsapp";
 import Flash from "@/components/Flash";
 import ReceberParcela from "@/components/ReceberParcela";
@@ -58,10 +59,10 @@ export default async function Financeiro({ searchParams }: { searchParams: Promi
       <div className="card table-wrap">
         <table className="table">
           <thead>
-            <tr><th>Cliente</th><th>Contrato</th><th>Parcela</th><th>{f === "pagas" ? "Recebida em" : "Vencimento"}</th><th>Valor</th><th>Situação</th><th>Recebimento</th><th>Cobrança</th></tr>
+            <tr><th>Cliente</th><th>Contrato</th><th>Parcela</th><th>{f === "pagas" ? "Recebida em" : "Vencimento"}</th><th>Valor</th><th>Situação</th><th>Recebimento</th><th>Cobrança</th><th className="col-acao"><span className="sr-only">Ação</span></th></tr>
           </thead>
           <tbody>
-            {parcelas.length === 0 && <tr><td colSpan={8} className="text-ink-soft">Nada por aqui.</td></tr>}
+            {parcelas.length === 0 && <tr><td colSpan={9} className="text-ink-soft">Nada por aqui.</td></tr>}
             {parcelas.map((p) => (
               <tr key={p.id}>
                 <td className="font-medium">{p.contrato.cliente.nome}</td>
@@ -91,6 +92,7 @@ export default async function Financeiro({ searchParams }: { searchParams: Promi
                     />
                   )}
                 </td>
+                <td className="col-acao"><AbrirLink href={`/contratos/${p.contratoId}`} rotulo={`Abrir contrato ${p.contrato.numero} de ${p.contrato.cliente.nome}`} /></td>
               </tr>
             ))}
           </tbody>
@@ -98,7 +100,7 @@ export default async function Financeiro({ searchParams }: { searchParams: Promi
             <tfoot>
               <tr>
                 <td colSpan={4} className="font-semibold text-gold">Total ({parcelas.length})</td>
-                <td colSpan={4} className="font-semibold">{money(total)}</td>
+                <td colSpan={5} className="font-semibold">{money(total)}</td>
               </tr>
             </tfoot>
           )}

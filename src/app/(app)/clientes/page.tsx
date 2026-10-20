@@ -1,4 +1,5 @@
 import Link from "next/link";
+import AbrirLink from "@/components/AbrirLink";
 import Flash from "@/components/Flash";
 import { podeEditarCadastros, requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -27,11 +28,11 @@ export default async function Clientes({ searchParams }: { searchParams: Promise
       <div className="card table-wrap">
         <table className="table">
           <thead>
-            <tr><th>Cliente</th><th>Contato</th><th>Telefone</th><th>Contratos ativos</th></tr>
+            <tr><th>Cliente</th><th>Contato</th><th>Telefone</th><th>Contratos ativos</th><th className="col-acao"><span className="sr-only">Ação</span></th></tr>
           </thead>
           <tbody>
             {clientes.length === 0 && (
-              <tr><td colSpan={4} className="text-ink-soft">Nenhum cliente encontrado.</td></tr>
+              <tr><td colSpan={5} className="text-ink-soft">Nenhum cliente encontrado.</td></tr>
             )}
             {clientes.map((c) => (
               <tr key={c.id} className={c.ativo ? "" : "opacity-50"}>
@@ -39,6 +40,7 @@ export default async function Clientes({ searchParams }: { searchParams: Promise
                 <td>{c.contato ?? "—"}</td>
                 <td>{c.telefone ?? "—"}</td>
                 <td>{c._count.contratos}</td>
+                <td className="col-acao"><AbrirLink href={`/clientes/${c.id}`} rotulo={`Abrir o cliente ${c.nome}`} /></td>
               </tr>
             ))}
           </tbody>

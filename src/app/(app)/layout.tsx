@@ -15,7 +15,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const iniciais = user.nome.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase();
 
   return (
-    <div className="lg:grid lg:grid-cols-[17rem_minmax(0,1fr)]">
+    <div className="lg:grid lg:grid-cols-[15rem_minmax(0,1fr)]">
       {/* Menu lateral (computador) */}
       <aside className="sticky top-0 hidden h-screen flex-col border-r border-line bg-black/30 px-4 py-6 backdrop-blur-xl lg:flex">
         <Link href="/" aria-label="Painel" className="mb-8 px-2">
@@ -59,7 +59,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </div>
         </header>
 
-        <div className="mx-auto w-full max-w-6xl px-4 pb-32 pt-6 lg:px-10 lg:pb-14 lg:pt-10"><SubNav areas={areas} />
+        <div className="mx-auto w-full max-w-6xl px-4 pb-32 pt-6 lg:px-8 lg:pb-14 lg:pt-10"><SubNav areas={areas} />
           {children}
         </div>
       </div>

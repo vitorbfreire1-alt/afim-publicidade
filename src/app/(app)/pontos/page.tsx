@@ -1,4 +1,5 @@
 import Link from "next/link";
+import AbrirLink from "@/components/AbrirLink";
 import Flash from "@/components/Flash";
 import { podeEditarCadastros, requireUser } from "@/lib/auth";
 import { TIPOS, TIPO_LABEL, isTipo } from "@/lib/labels";
@@ -51,10 +52,10 @@ export default async function Pontos({ searchParams }: { searchParams: Promise<{
       <div className="card table-wrap">
         <table className="table">
           <thead>
-            <tr><th>Ponto</th><th>Endereço</th><th>Cotas</th><th>Clientes ativos</th></tr>
+            <tr><th>Ponto</th><th>Endereço</th><th>Cotas</th><th>Clientes ativos</th><th className="col-acao"><span className="sr-only">Ação</span></th></tr>
           </thead>
           <tbody>
-            {pontos.length === 0 && <tr><td colSpan={4} className="text-ink-soft">Nenhum ponto cadastrado.</td></tr>}
+            {pontos.length === 0 && <tr><td colSpan={5} className="text-ink-soft">Nenhum ponto cadastrado.</td></tr>}
             {pontos.map((p) => {
               return (
                 <tr key={p.id} className={p.ativo ? "" : "opacity-50"}>
@@ -76,6 +77,7 @@ export default async function Pontos({ searchParams }: { searchParams: Promise<{
                       </ul>
                     )}
                   </td>
+                  <td className="col-acao"><AbrirLink href={`/pontos/${p.id}`} rotulo={`Abrir o ponto ${p.nome}`} /></td>
                 </tr>
               );
             })}
