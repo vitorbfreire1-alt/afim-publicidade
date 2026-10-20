@@ -3,14 +3,14 @@ import BotaoImprimir from "@/components/BotaoImprimir";
 import { requireUser } from "@/lib/auth";
 import { getConfig } from "@/lib/config";
 import { calcularEncargos, regrasDe } from "@/lib/encargos";
-import { statusParcela } from "@/lib/financeiro";
+import { estaEmAberto, statusParcela } from "@/lib/financeiro";
 import { dateBR, hoje, money } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Extrato do cliente", robots: { index: false } };
 
-const SIT = { PAGA: "Recebida", ATRASADA: "Em atraso", A_VENCER: "A vencer" } as const;
+const SIT = { PAGA: "Recebida", ATRASADA: "Em atraso", A_VENCER: "A vencer", RENEGOCIADA: "Renegociada" } as const;
 
 export default async function Extrato({ params }: { params: Promise<{ id: string }> }) {
   const [, { id }] = await Promise.all([requireUser(), params]);
@@ -25,9 +25,9 @@ export default async function Extrato({ params }: { params: Promise<{ id: string
 
   const todas = cliente.contratos.flatMap((c) => c.parcelas.map((p) => ({ c, p })));
   const pago = todas.filter(({ p }) => p.pagoEm).reduce((s, { p }) => s + Number(p.valorPago ?? 0), 0);
-  const aberto = todas.filter(({ p, c }) => !p.pagoEm && c.status === "ATIVO").reduce((s, { p }) => s + Number(p.valor), 0);
+  const aberto = todas.filter(({ p, c }) => estaEmAberto(p) && c.status === "ATIVO").reduce((s, { p }) => s + Number(p.valor), 0);
   const atraso = todas
-    .filter(({ p, c }) => !p.pagoEm && c.status === "ATIVO" && p.vencimento < h)
+    .filter(({ p, c }) => estaEmAberto(p) && c.status === "ATIVO" && p.vencimento < h)
     .reduce((s, { p }) => s + calcularEncargos(Number(p.valor), p.vencimento, regras, h).total, 0);
 
   return (

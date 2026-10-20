@@ -4,6 +4,7 @@ const ESTILO: Record<StatusParcela, { texto: string; cor: string }> = {
   PAGA: { texto: "Recebida", cor: "text-good" },
   ATRASADA: { texto: "Em atraso", cor: "text-danger" },
   A_VENCER: { texto: "A vencer", cor: "text-warn" },
+  RENEGOCIADA: { texto: "Renegociada", cor: "text-ink-soft" },
 };
 
 export default function StatusBadge({ status, rotulos }: { status: StatusParcela; rotulos?: Partial<Record<StatusParcela, string>> }) {

@@ -29,7 +29,7 @@ export default async function Financeiro({ searchParams }: { searchParams: Promi
 
   const where =
     f === "atraso" ? filtroEmAtraso()
-    : f === "vencer" ? { ...ativo, pagoEm: null, vencimento: { gte: h } }
+    : f === "vencer" ? { ...ativo, pagoEm: null, renegociadaEm: null, vencimento: { gte: h } }
     : { pagoEm: { not: null } };
 
   const parcelas = await prisma.parcela.findMany({
@@ -39,7 +39,7 @@ export default async function Financeiro({ searchParams }: { searchParams: Promi
     include: { contrato: { include: { cliente: true, _count: { select: { parcelas: true } } } } },
   });
   const regras = regrasDe(await getConfig());
-  const encargos = (p: (typeof parcelas)[number]) => (p.pagoEm ? null : calcularEncargos(Number(p.valor), p.vencimento, regras, h));
+  const encargos = (p: (typeof parcelas)[number]) => (p.pagoEm || p.renegociadaEm ? null : calcularEncargos(Number(p.valor), p.vencimento, regras, h));
   const total = parcelas.reduce((s, p) => s + Number(f === "pagas" ? p.valorPago : p.valor), 0);
   const volta = `/financeiro?f=${f}`;
 
@@ -85,7 +85,7 @@ export default async function Financeiro({ searchParams }: { searchParams: Promi
                   />
                 </td>
                 <td>
-                  {!p.pagoEm && (
+                  {!p.pagoEm && !p.renegociadaEm && (
                     <BotaoWhatsapp
                       href={linkCobranca({ cliente: p.contrato.cliente, numero: p.numero, total: p.contrato._count.parcelas, vencimento: p.vencimento, valor: p.valor, atualizado: encargos(p)?.total })}
                     />

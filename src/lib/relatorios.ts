@@ -32,7 +32,7 @@ export async function relatorioFinanceiro({ inicio, fim }: Periodo) {
     }),
     prisma.despesa.findMany({ where: { pagoEm: { gte: inicio, lte: fim } }, select: { categoria: true, valorPago: true } }),
     prisma.parcela.findMany({
-      where: { pagoEm: null, vencimento: { lt: h }, contrato: { status: "ATIVO" } },
+      where: { pagoEm: null, renegociadaEm: null, vencimento: { lt: h }, contrato: { status: "ATIVO" } },
       select: { valor: true, vencimento: true, contrato: { select: { cliente: { select: { id: true, nome: true } } } } },
     }),
     lucroPorPonto(inicio, fim),

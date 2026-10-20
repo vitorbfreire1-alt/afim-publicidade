@@ -6,9 +6,9 @@ import type { FormaPagamento } from "@prisma/client";
 import { msg } from "@/components/Flash";
 import { registrar } from "@/lib/audit";
 import { requireUser } from "@/lib/auth";
-import { choqueComRecebida, recalcularPeriodo, somarParcelas } from "@/lib/contrato";
+import { choqueComRecebida, parcelaDoMes, recalcularPeriodo, renumerarParcelas, somarParcelas } from "@/lib/contrato";
 import { janelaDeRenovacao, verificarCotas } from "@/lib/cotas";
-import { agregarParcelas, calcularFim, gerarParcelas } from "@/lib/financeiro";
+import { addMeses, agregarParcelas, calcularFim, gerarParcelas } from "@/lib/financeiro";
 import { data, inteiro, texto } from "@/lib/form";
 import { dateBR, hoje, parseMoney } from "@/lib/format";
 import { FORMAS } from "@/lib/labels";
@@ -199,7 +199,7 @@ export async function aplicarReajuste(contratoId: string, fd: FormData) {
 
   const h = hoje();
   const fator = 1 + percentual / 100;
-  const futuras = await prisma.parcela.findMany({ where: { contratoId, pagoEm: null, vencimento: { gte: h } } });
+  const futuras = await prisma.parcela.findMany({ where: { contratoId, pagoEm: null, renegociadaEm: null, vencimento: { gte: h } } });
   if (!futuras.length) volta("Não há parcelas futuras para reajustar.");
 
   await prisma.$transaction(async (tx) => {
@@ -219,4 +219,145 @@ export async function aplicarReajuste(contratoId: string, fd: FormData) {
   await registrar(user, "reajustou", "Contrato", contratoId, `${indice} ${percentual}% em ${futuras.length} parcela(s)`);
   revalidatePath("/", "layout");
   redirect(msg(`/contratos/${contratoId}`, "ok", `Reajuste de ${percentual}% aplicado em ${futuras.length} parcela(s) futura(s).`));
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Edição de contratos já criados
+// ---------------------------------------------------------------------------------------------------------------------
+
+const arred = (n: number) => Math.round(n * 100) / 100;
+
+/** Dados gerais: forma de pagamento, dia de vencimento (move as parcelas ainda não pagas), vendedor, comissão e observações. */
+export async function editarContrato(id: string, fd: FormData) {
+  const user = await requireUser("COMERCIAL");
+  const volta = (t: string) => redirect(msg(`/contratos/${id}`, "erro", t));
+
+  const forma = String(fd.get("formaPagamento") ?? "") as FormaPagamento;
+  const dia = inteiro(fd, "diaVencimento");
+  const vendedorId = texto(fd, "vendedorId");
+  const comissaoBruta = String(fd.get("comissaoPct") ?? "").trim();
+  const comissaoPct = comissaoBruta ? Number(comissaoBruta.replace(",", ".")) : null;
+  if (!FORMAS.includes(forma)) volta("Escolha a forma de pagamento.");
+  if (!Number.isInteger(dia) || dia < 1 || dia > 28) volta("O dia de vencimento deve ser de 1 a 28.");
+  if (comissaoPct !== null && !(comissaoPct >= 0 && comissaoPct <= 100)) volta("A comissão deve estar entre 0 e 100%.");
+
+  const contrato = await prisma.contrato.findUnique({ where: { id }, include: { parcelas: true } });
+  if (!contrato) volta("Contrato não encontrado.");
+
+  await prisma.$transaction(async (tx) => {
+    if (dia !== contrato!.diaVencimento) {
+      // Só parcelas normais e ainda não pagas mudam de dia (acordos e parcelas pagas ficam como estão).
+      for (const p of contrato!.parcelas.filter((x) => !x.pagoEm && !x.renegociadaEm && !x.acordoId)) {
+        await tx.parcela.update({ where: { id: p.id }, data: { vencimento: addMeses(p.vencimento, 0, dia) } });
+      }
+      await renumerarParcelas(tx, id);
+    }
+    await tx.contrato.update({
+      where: { id },
+      data: { formaPagamento: forma, diaVencimento: dia, vendedorId, comissaoPct: vendedorId ? comissaoPct : null, observacoes: texto(fd, "observacoes") },
+    });
+  });
+  await registrar(user, "editou", "Contrato", id, `Contrato #${contrato!.numero}${dia !== contrato!.diaVencimento ? ` (vencimento dia ${dia})` : ""}`);
+  revalidatePath("/", "layout");
+  redirect(msg(`/contratos/${id}`, "ok", "Contrato atualizado."));
+}
+
+/** Novo valor mensal de um ponto, a partir de hoje: ajusta as parcelas futuras não pagas na diferença. */
+export async function alterarValorPonto(contratoId: string, pontoId: string, fd: FormData) {
+  const user = await requireUser("COMERCIAL");
+  const volta = (t: string) => redirect(msg(`/contratos/${contratoId}`, "erro", t));
+  const novo = parseMoney(fd.get("valor"));
+  if (!(novo > 0)) volta("Informe o novo valor mensal.");
+
+  const cp = await prisma.contratoPonto.findUnique({
+    where: { contratoId_pontoId: { contratoId, pontoId } },
+    include: { contrato: { include: { parcelas: true } } },
+  });
+  if (!cp || cp.contrato.status !== "ATIVO") volta("Só é possível alterar contratos ativos.");
+  const delta = arred(novo - Number(cp!.valor));
+  if (delta === 0) volta("O valor informado é igual ao atual.");
+
+  const h = hoje();
+  const meses = gerarParcelas(cp!.inicio, cp!.prazoMeses, cp!.contrato.diaVencimento, 0).filter((x) => x.vencimento >= h);
+  let alteradas = 0;
+  await prisma.$transaction(async (tx) => {
+    for (const m of meses) {
+      const p = parcelaDoMes(cp!.contrato.parcelas, m.vencimento);
+      if (!p || p.pagoEm || arred(Number(p.valor) + delta) <= 0) continue;
+      await tx.parcela.update({ where: { id: p.id }, data: { valor: arred(Number(p.valor) + delta) } });
+      alteradas++;
+    }
+    await tx.contratoPonto.update({ where: { contratoId_pontoId: { contratoId, pontoId } }, data: { valor: novo } });
+  });
+  await registrar(user, "alterou valor do ponto", "Contrato", contratoId, `${Number(cp!.valor)} → ${novo} em ${alteradas} parcela(s)`);
+  revalidatePath("/", "layout");
+  redirect(msg(`/contratos/${contratoId}`, "ok", `Valor alterado em ${alteradas} parcela(s) futura(s).`));
+}
+
+/**
+ * Encerra um ponto numa data: as parcelas dele depois dessa data são retiradas (as já pagas ficam).
+ * Para "trocar" um ponto, encerre o antigo e adicione o novo.
+ */
+export async function encerrarPonto(contratoId: string, pontoId: string, fd: FormData) {
+  const user = await requireUser("COMERCIAL");
+  const volta = (t: string) => redirect(msg(`/contratos/${contratoId}`, "erro", t));
+  const corte = data(fd, "data");
+  if (!corte) volta("Informe a data de encerramento.");
+
+  const cp = await prisma.contratoPonto.findUnique({
+    where: { contratoId_pontoId: { contratoId, pontoId } },
+    include: { ponto: true, contrato: { include: { parcelas: true, pontos: true } } },
+  });
+  if (!cp || cp.contrato.status !== "ATIVO") volta("Só é possível alterar contratos ativos.");
+  if (cp!.contrato.pontos.length < 2) volta("Este é o único ponto do contrato. Para terminar tudo, use Encerrar contrato.");
+
+  const todas = gerarParcelas(cp!.inicio, cp!.prazoMeses, cp!.contrato.diaVencimento, Number(cp!.valor));
+  const ficam = todas.filter((x) => x.vencimento <= corte!);
+  const saem = todas.filter((x) => x.vencimento > corte!);
+  if (!saem.length) volta("Essa data é igual ou posterior ao fim do ponto; não há nada a retirar.");
+
+  let mantidas = 0;
+  await prisma.$transaction(async (tx) => {
+    for (const m of saem) {
+      const p = parcelaDoMes(cp!.contrato.parcelas, m.vencimento);
+      if (!p) continue;
+      if (p.pagoEm) { mantidas++; continue; } // já recebida: não mexe
+      const resto = arred(Number(p.valor) - Number(cp!.valor));
+      if (resto <= 0.009) await tx.parcela.delete({ where: { id: p.id } });
+      else await tx.parcela.update({ where: { id: p.id }, data: { valor: resto } });
+    }
+    if (!ficam.length) {
+      await tx.contratoPonto.delete({ where: { contratoId_pontoId: { contratoId, pontoId } } });
+    } else {
+      await tx.contratoPonto.update({
+        where: { contratoId_pontoId: { contratoId, pontoId } },
+        data: { prazoMeses: ficam.length, fim: calcularFim(cp!.inicio, ficam.length) },
+      });
+    }
+    await renumerarParcelas(tx, contratoId);
+    await recalcularPeriodo(tx, contratoId);
+  });
+  await registrar(user, "encerrou ponto", "Contrato", contratoId, `${cp!.ponto.nome} em ${dateBR(corte!)}`);
+  revalidatePath("/", "layout");
+  redirect(msg(`/contratos/${contratoId}`, "ok", `Ponto encerrado. ${saem.length - mantidas} parcela(s) ajustada(s)${mantidas ? `; ${mantidas} já paga(s) foram mantidas` : ""}.`));
+}
+
+/** Ajusta uma parcela ainda em aberto (valor, vencimento, motivo): descontos, prorrogações. */
+export async function editarParcela(id: string, volta: string, fd: FormData) {
+  const user = await requireUser("FINANCEIRO");
+  const valor = parseMoney(fd.get("valor"));
+  const vencimento = data(fd, "vencimento");
+  if (!(valor > 0) || !vencimento) redirect(msg(volta, "erro", "Informe um valor e uma data de vencimento válidos."));
+
+  const p = await prisma.parcela.findUnique({ where: { id } });
+  if (!p) redirect(msg(volta, "erro", "Parcela não encontrada."));
+  if (p!.pagoEm || p!.renegociadaEm) redirect(msg(volta, "erro", "Só dá para editar parcelas em aberto. Se já foi recebida, desfaça o recebimento primeiro."));
+
+  await prisma.$transaction(async (tx) => {
+    await tx.parcela.update({ where: { id }, data: { valor, vencimento, observacoes: texto(fd, "observacoes") } });
+    await renumerarParcelas(tx, p!.contratoId);
+  });
+  await registrar(user, "editou parcela", "Parcela", id, `${Number(p!.valor)} → ${valor}; vence ${dateBR(vencimento)}`);
+  revalidatePath("/", "layout");
+  redirect(msg(volta, "ok", "Parcela atualizada."));
 }

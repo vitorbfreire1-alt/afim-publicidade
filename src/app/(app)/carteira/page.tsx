@@ -25,7 +25,7 @@ export default async function Carteira({ searchParams }: { searchParams: Promise
 
   const linhas = itens.map((cp) => {
     const c = cp.contrato;
-    const abertas = c.parcelas.filter((p) => !p.pagoEm);
+    const abertas = c.parcelas.filter((p) => !p.pagoEm && !p.renegociadaEm);
     const atrasadas = abertas.filter((p) => statusParcela(p, h) === "ATRASADA");
     const proxima = abertas.find((p) => p.vencimento >= h);
     const recebimento = atrasadas.length

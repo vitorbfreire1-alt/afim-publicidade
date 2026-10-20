@@ -4,6 +4,8 @@ import Flash from "@/components/Flash";
 import FluxoMensal from "@/components/FluxoMensal";
 import { requireUser } from "@/lib/auth";
 import { alertas, fluxoMensal, resumoFinanceiro } from "@/lib/financeiro";
+import { chaveDoMes } from "@/lib/indicadores";
+import { prisma } from "@/lib/prisma";
 import { dateBR, diasEntre, hoje, money } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -57,7 +59,7 @@ function Lista({ i, titulo, icone: Icone, cor, vazio, children }: {
 
 export default async function Painel({ searchParams }: { searchParams: Promise<{ erro?: string; ok?: string }> }) {
   const [user, { erro, ok }] = await Promise.all([requireUser(), searchParams]);
-  const [r, a, fluxo] = await Promise.all([resumoFinanceiro(), alertas(), fluxoMensal()]);
+  const [r, a, fluxo, meta] = await Promise.all([resumoFinanceiro(), alertas(), fluxoMensal(), prisma.meta.findUnique({ where: { mes: chaveDoMes(hoje()) } })]);
   const h = hoje();
   const financeiro = user.papel === "DONO" || user.papel === "FINANCEIRO";
   const resultado = r.recebidoMes - r.despesasPagasMes;
@@ -83,6 +85,18 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
         <Kpi i={5} icone={FileText} label="Contratos ativos" value={String(r.contratosAtivos)} />
         <Kpi i={6} icone={Gauge} label="Pontos com clientes" value={`${ocupacao}%`} sub={`${r.pontosOcupados} de ${r.pontosTotal} com contrato ativo`} />
       </section>
+
+      {financeiro && meta && (
+        <Link href="/indicadores" className="card rise mt-4 block p-5 lg:mt-5" style={{ ["--i" as string]: 5 }}>
+          <div className="mb-2 flex items-center justify-between text-sm">
+            <span className="font-semibold text-gold-soft">Meta do mês</span>
+            <span className="text-xs text-ink-soft">{money(r.recebidoMes)} de {money(meta.valor)}</span>
+          </div>
+          <div className="h-2.5 overflow-hidden rounded-full bg-white/10">
+            <div className={`h-full rounded-full ${r.recebidoMes >= Number(meta.valor) ? "bg-good" : "bg-gradient-to-r from-gold-deep to-gold-soft"}`} style={{ width: `${Math.min(100, (r.recebidoMes / Number(meta.valor)) * 100)}%` }} />
+          </div>
+        </Link>
+      )}
 
       <section className="card rise mt-4 p-5 lg:mt-5 lg:p-6" style={{ ["--i" as string]: 5 }}>
         <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-gold-soft">

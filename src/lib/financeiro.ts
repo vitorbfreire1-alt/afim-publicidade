@@ -28,6 +28,7 @@ export function gerarParcelas(inicio: Date, prazoMeses: number, diaVencimento: n
 }
 
 const chaveData = (d: Date) => d.toISOString().slice(0, 10);
+const chaveMesF = (d: Date) => d.toISOString().slice(0, 7);
 
 /**
  * Cobrança mensal do contrato: cada ponto gera suas parcelas (valor/início/prazo próprios) e as do mesmo
@@ -63,13 +64,14 @@ export function valorMensalAtual(pontos: PontoDoContrato[], ref = hoje()): numbe
 
 /** Quanto das parcelas em atraso (datas de vencimento) pertence a este ponto. */
 export function atrasoDoPonto(p: PontoDoContrato, diaVencimento: number, vencimentosEmAtraso: Date[]): number {
-  const meus = new Set(gerarParcelas(p.inicio, p.prazoMeses, diaVencimento, 0).map((x) => chaveData(x.vencimento)));
-  return vencimentosEmAtraso.filter((v) => meus.has(chaveData(v))).length * Number(p.valor);
+  const meus = new Set(gerarParcelas(p.inicio, p.prazoMeses, diaVencimento, 0).map((x) => chaveMesF(x.vencimento)));
+  return vencimentosEmAtraso.filter((v) => meus.has(chaveMesF(v))).length * Number(p.valor);
 }
 
 /** Parcelas de contratos ativos vencidas e não pagas. */
 export const filtroEmAtraso = () => ({
   pagoEm: null,
+  renegociadaEm: null,
   vencimento: { lt: hoje() },
   contrato: { status: "ATIVO" as const },
 });
@@ -87,7 +89,7 @@ export async function resumoFinanceiro() {
   const [atraso, previstoMes, recebidoMes, contratosAtivos, pontosOcupados, pontosTotal, despesasPagas, despesasAPagar] = await Promise.all([
     prisma.parcela.aggregate({ where: filtroEmAtraso(), _sum: { valor: true }, _count: true }),
     prisma.parcela.aggregate({
-      where: { ...ativo, vencimento: { gte: inicioMes, lte: fimMes } },
+      where: { ...ativo, renegociadaEm: null, vencimento: { gte: inicioMes, lte: fimMes } },
       _sum: { valor: true },
     }),
     prisma.parcela.aggregate({
@@ -116,10 +118,14 @@ export async function resumoFinanceiro() {
   };
 }
 
-export type StatusParcela = "PAGA" | "ATRASADA" | "A_VENCER";
+export type StatusParcela = "PAGA" | "ATRASADA" | "A_VENCER" | "RENEGOCIADA";
 
-export function statusParcela(p: { pagoEm: Date | null; vencimento: Date }, ref = hoje()): StatusParcela {
+/** Parcela ainda a receber: nem paga, nem trocada por um acordo de dívida. */
+export const estaEmAberto = (p: { pagoEm: Date | null; renegociadaEm?: Date | null }) => !p.pagoEm && !p.renegociadaEm;
+
+export function statusParcela(p: { pagoEm: Date | null; vencimento: Date; renegociadaEm?: Date | null }, ref = hoje()): StatusParcela {
   if (p.pagoEm) return "PAGA";
+  if (p.renegociadaEm) return "RENEGOCIADA";
   return p.vencimento < ref ? "ATRASADA" : "A_VENCER";
 }
 
@@ -132,7 +138,7 @@ export async function alertas() {
   const [atrasadas, aVencer, terminando, despesas, ocorrencias] = await Promise.all([
     prisma.parcela.findMany({ where: filtroEmAtraso(), include, orderBy: { vencimento: "asc" }, take: 15 }),
     prisma.parcela.findMany({
-      where: { ...ativo, pagoEm: null, vencimento: { gte: h, lte: addDias(h, 7) } },
+      where: { ...ativo, pagoEm: null, renegociadaEm: null, vencimento: { gte: h, lte: addDias(h, 7) } },
       include,
       orderBy: { vencimento: "asc" },
       take: 15,
@@ -180,14 +186,14 @@ export async function fluxoMensal(): Promise<MesFluxo[]> {
 
   const parcelas = await prisma.parcela.findMany({
     where: { OR: [{ vencimento: { gte: inicio, lte: fim } }, { pagoEm: { gte: inicio, lte: fim } }] },
-    select: { vencimento: true, valor: true, pagoEm: true, valorPago: true, contrato: { select: { status: true } } },
+    select: { vencimento: true, valor: true, pagoEm: true, valorPago: true, renegociadaEm: true, contrato: { select: { status: true } } },
   });
 
   const chaveDe = (d: Date) => `${d.getUTCFullYear()}-${d.getUTCMonth()}`;
   const previsto = new Map<string, number>();
   const recebido = new Map<string, number>();
   for (const p of parcelas) {
-    if (p.contrato.status === "ATIVO") previsto.set(chaveDe(p.vencimento), (previsto.get(chaveDe(p.vencimento)) ?? 0) + Number(p.valor));
+    if (p.contrato.status === "ATIVO" && !p.renegociadaEm) previsto.set(chaveDe(p.vencimento), (previsto.get(chaveDe(p.vencimento)) ?? 0) + Number(p.valor));
     if (p.pagoEm) recebido.set(chaveDe(p.pagoEm), (recebido.get(chaveDe(p.pagoEm)) ?? 0) + Number(p.valorPago ?? 0));
   }
 
@@ -219,7 +225,7 @@ export async function fluxoCaixa(inicio: Date, meses: number): Promise<MesCaixa[
   const [parcelas, despesas] = await Promise.all([
     prisma.parcela.findMany({
       where: { OR: [{ vencimento: dentro }, { pagoEm: dentro }] },
-      select: { vencimento: true, valor: true, pagoEm: true, valorPago: true, contrato: { select: { status: true } } },
+      select: { vencimento: true, valor: true, pagoEm: true, valorPago: true, renegociadaEm: true, contrato: { select: { status: true } } },
     }),
     prisma.despesa.findMany({
       where: { OR: [{ vencimento: dentro }, { pagoEm: dentro }] },
@@ -231,7 +237,7 @@ export async function fluxoCaixa(inicio: Date, meses: number): Promise<MesCaixa[
   const soma = (m: Map<string, number>, d: Date, v: number) => m.set(k(d), (m.get(k(d)) ?? 0) + v);
   const [eP, eR, sP, sR] = [new Map<string, number>(), new Map<string, number>(), new Map<string, number>(), new Map<string, number>()];
   for (const p of parcelas) {
-    if (p.contrato.status === "ATIVO") soma(eP, p.vencimento, Number(p.valor));
+    if (p.contrato.status === "ATIVO" && !p.renegociadaEm) soma(eP, p.vencimento, Number(p.valor));
     if (p.pagoEm) soma(eR, p.pagoEm, Number(p.valorPago ?? 0));
   }
   for (const d of despesas) {

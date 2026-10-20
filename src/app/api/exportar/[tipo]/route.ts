@@ -10,7 +10,7 @@ import { periodoDe } from "@/lib/relatorios";
 
 export const dynamic = "force-dynamic";
 
-const SIT = { PAGA: "Recebida", ATRASADA: "Em atraso", A_VENCER: "A vencer" } as const;
+const SIT = { PAGA: "Recebida", ATRASADA: "Em atraso", A_VENCER: "A vencer", RENEGOCIADA: "Renegociada" } as const;
 const num = (v: unknown) => (v == null ? null : Number(v));
 
 /** Exportações em CSV (abre no Excel). Dados financeiros só para Dono/Financeiro. */
@@ -46,7 +46,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ tipo: st
     cab = ["Cliente", "Contrato", "Parcela", "Vencimento", "Valor", "Situação", "Valor atualizado", "Pago em", "Valor pago", "Forma recebida"];
     linhas = r.map((p) => [
       p.contrato.cliente.nome, p.contrato.numero, p.numero, p.vencimento, num(p.valor), SIT[statusParcela(p, h)],
-      p.pagoEm ? null : calcularEncargos(Number(p.valor), p.vencimento, regras, h).total, p.pagoEm, num(p.valorPago), p.formaRecebida ? FORMA_LABEL[p.formaRecebida] : null,
+      p.pagoEm || p.renegociadaEm ? null : calcularEncargos(Number(p.valor), p.vencimento, regras, h).total, p.pagoEm, num(p.valorPago), p.formaRecebida ? FORMA_LABEL[p.formaRecebida] : null,
     ]);
   } else if (financeiro && tipo === "despesas") {
     const r = await prisma.despesa.findMany({ where: { OR: [{ vencimento: { gte: inicio, lte: fim } }, { pagoEm: { gte: inicio, lte: fim } }] }, orderBy: { vencimento: "asc" }, include: { ponto: true } });

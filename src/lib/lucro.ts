@@ -9,7 +9,7 @@ export interface LucroPonto {
   margem: number | null; // % sobre a receita; nulo sem receita
 }
 
-const chave = (d: Date) => d.toISOString().slice(0, 10);
+const chave = (d: Date) => d.toISOString().slice(0, 7); // mês: tolera mudança do dia de vencimento
 const arred = (n: number) => Math.round(n * 100) / 100;
 
 /**

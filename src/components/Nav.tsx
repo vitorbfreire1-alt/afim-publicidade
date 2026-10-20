@@ -10,6 +10,7 @@ import {
   FileBarChart,
   History,
   Percent,
+  Target,
   TrendingUp,
   Wrench,
   CircleDollarSign,
@@ -39,6 +40,7 @@ const ICONES: Record<string, LucideIcon> = {
   manutencao: Wrench,
   relatorios: FileBarChart,
   historico: History,
+  indicadores: Target,
 };
 
 export interface NavItem {

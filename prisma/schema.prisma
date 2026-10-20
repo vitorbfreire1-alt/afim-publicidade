@@ -152,6 +152,7 @@ model Contrato {
   pontos         ContratoPonto[]
   parcelas       Parcela[]
   reajustes      Reajuste[]
+  acordos        Acordo[]
   arquivos       Arquivo[]
   proposta       Proposta?
 
@@ -177,16 +178,23 @@ model ContratoPonto {
 // Cobrança mensal. "Recebimento" da planilha = pagoEm preenchido.
 // Atraso e inadimplência são calculados (pagoEm nulo e vencimento passado), não digitados.
 model Parcela {
-  id            String          @id @default(cuid())
-  contratoId    String
-  contrato      Contrato        @relation(fields: [contratoId], references: [id], onDelete: Cascade)
-  numero        Int
-  vencimento    DateTime        @db.Date
-  valor         Decimal         @db.Decimal(12, 2)
-  pagoEm        DateTime?       @db.Date
-  valorPago     Decimal?        @db.Decimal(12, 2)
-  formaRecebida FormaPagamento?
-  observacoes   String?
+  id              String          @id @default(cuid())
+  contratoId      String
+  contrato        Contrato        @relation(fields: [contratoId], references: [id], onDelete: Cascade)
+  numero          Int
+  vencimento      DateTime        @db.Date
+  valor           Decimal         @db.Decimal(12, 2)
+  pagoEm          DateTime?       @db.Date
+  valorPago       Decimal?        @db.Decimal(12, 2)
+  formaRecebida   FormaPagamento?
+  observacoes     String?
+  // Renegociação: parcelas vencidas trocadas por um acordo ficam "renegociadas" (saem da inadimplência, mantêm o histórico);
+  // as parcelas novas do acordo apontam para ele em `acordoId`.
+  renegociadaEm   DateTime?       @db.Date
+  renegociadaNoId String?
+  renegociadaNo   Acordo?         @relation("AcordoRenegociadas", fields: [renegociadaNoId], references: [id], onDelete: SetNull)
+  acordoId        String?
+  acordo          Acordo?         @relation("AcordoGeradas", fields: [acordoId], references: [id], onDelete: SetNull)
 
   @@unique([contratoId, numero])
   @@index([vencimento])
@@ -353,4 +361,32 @@ model Auditoria {
 
   @@index([criadoEm])
   @@index([entidade, entidadeId])
+}
+
+// Negociação de dívida: troca parcelas vencidas por novas parcelas (com entrada e desconto opcionais).
+model Acordo {
+  id            String    @id @default(cuid())
+  numero        Int       @unique @default(autoincrement())
+  contratoId    String
+  contrato      Contrato  @relation(fields: [contratoId], references: [id], onDelete: Cascade)
+  totalOriginal Decimal   @db.Decimal(12, 2) // soma das parcelas vencidas com multa e juros, na data do acordo
+  desconto      Decimal   @default(0) @db.Decimal(12, 2)
+  totalAcordado Decimal   @db.Decimal(12, 2)
+  entrada       Decimal   @default(0) @db.Decimal(12, 2)
+  parcelas      Int // quantidade de parcelas do saldo (depois da entrada)
+  primeiroVenc  DateTime  @db.Date
+  observacoes   String?
+  usuarioNome   String?
+  criadoEm      DateTime  @default(now())
+  geradas       Parcela[] @relation("AcordoGeradas")
+  renegociadas  Parcela[] @relation("AcordoRenegociadas")
+
+  @@index([contratoId])
+}
+
+// Meta de faturamento (valor a receber) de um mês.
+model Meta {
+  id    String  @id @default(cuid())
+  mes   String  @unique // "2026-10"
+  valor Decimal @db.Decimal(12, 2)
 }

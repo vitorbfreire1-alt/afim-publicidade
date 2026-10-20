@@ -7,14 +7,20 @@ Sistema web (funciona no computador e no celular) para a locação de painéis d
 **Dia a dia**
 - **Carteira** por tipo de mídia (LED, totem, triedro, outdoor), com valor, prazo e inadimplência de cada ponto.
 - **Clientes, pontos e contratos** — um contrato pode ter vários pontos, cada um com valor, início e prazo próprios; um ponto pode ter vários clientes (com limite opcional de **cotas**, que bloqueia contratos que lotariam o ponto).
+- **Editar contratos já criados**: dia de vencimento, forma de pagamento, vendedor, valor de cada ponto, encerrar ou trocar pontos e ajustar uma parcela (desconto, prorrogação).
 - **Renovar / adicionar pontos** a contratos existentes e **reajuste anual** (IGP-M, IPCA ou acordo), com aviso no painel.
 - **Propostas** em funil (enviada → negociando → fechada/perdida), com conversão em contrato já preenchido.
 - **Disponibilidade** — grade de pontos por mês: livre, parcial ou lotado.
 
 **Financeiro**
+- **Negociação de dívida** — troca parcelas vencidas (com multa e juros) por um acordo com desconto, entrada e novas parcelas; as originais ficam "renegociadas"; envio por WhatsApp e termo para imprimir.
 - **A receber** — baixa de parcelas, **multa e juros** automáticos sobre o atraso (configuráveis), **cobrança por WhatsApp** com mensagem pronta.
 - **Despesas** com repetição mensal, **fluxo de caixa** (previsto x realizado), **comissões** de vendedores (lançadas como despesa) e **lucro por ponto**.
 - **Relatórios** (faturamento por mês/tipo/cliente, despesas por categoria, inadimplência por faixa de atraso) e **exportação em CSV/Excel**.
+
+**Gestão**
+- **Metas e indicadores** — meta de faturamento do mês com progresso, receita recorrente (MRR) e sua evolução, ticket médio, taxa de inadimplência, ocupação por tipo, ranking de vendedores, receita por m² e funil de propostas.
+- **Busca geral** (Ctrl+K ou lupa no celular) por clientes, contratos, pontos, propostas, despesas e ocorrências.
 
 **Documentos e operação**
 - **Recibo**, **extrato do cliente** e **contrato** prontos para imprimir ou salvar em PDF.

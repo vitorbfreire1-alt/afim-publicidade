@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { LogOut } from "lucide-react";
+import BuscaGlobal from "@/components/BuscaGlobal";
 import Logo from "@/components/Logo";
 import Nav, { type NavItem } from "@/components/Nav";
 import { logout } from "@/app/actions/auth";
@@ -23,6 +24,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     financeiro && { href: "/despesas", label: "Despesas", icone: "despesas" },
     financeiro && { href: "/fluxo", label: "Fluxo", icone: "fluxo" },
     { href: "/comissoes", label: "Comissões", icone: "comissoes" },
+    financeiro && { href: "/indicadores", label: "Metas", icone: "indicadores" },
     financeiro && { href: "/relatorios", label: "Relatórios", icone: "relatorios" },
     user.papel === "DONO" && { href: "/historico", label: "Histórico", icone: "historico" },
     user.papel === "DONO" && { href: "/usuarios", label: "Usuários", icone: "usuarios" },
@@ -37,6 +39,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <Link href="/" aria-label="Painel" className="mb-8 px-2">
           <Logo />
         </Link>
+        <BuscaGlobal variante="lateral" />
         <div className="-mx-1 min-h-0 flex-1 overflow-y-auto px-1 pb-4">
           <Nav items={items} variante="lateral" />
         </div>
@@ -62,12 +65,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <Link href="/" aria-label="Painel">
             <Logo />
           </Link>
-          <form action={logout} className="flex items-center gap-2">
-            <span className="text-xs text-ink-soft">{user.nome.split(" ")[0]}</span>
-            <button className="btn btn-sm !px-2.5" type="submit" aria-label="Sair">
-              <LogOut className="size-4" />
-            </button>
-          </form>
+          <div className="flex items-center gap-2">
+            {/* Fora do <form> de sair: o Enter da busca não pode acionar o logout. */}
+            <BuscaGlobal variante="icone" />
+            <form action={logout} className="flex items-center gap-2">
+              <span className="text-xs text-ink-soft">{user.nome.split(" ")[0]}</span>
+              <button className="btn btn-sm !px-2.5" type="submit" aria-label="Sair">
+                <LogOut className="size-4" />
+              </button>
+            </form>
+          </div>
         </header>
 
         <div className="mx-auto w-full max-w-6xl px-4 pb-32 pt-6 lg:px-10 lg:pb-14 lg:pt-10">{children}</div>

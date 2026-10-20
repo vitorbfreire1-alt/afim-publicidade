@@ -119,6 +119,9 @@ CREATE TABLE "Parcela" (
     "valorPago" DECIMAL(12,2),
     "formaRecebida" "FormaPagamento",
     "observacoes" TEXT,
+    "renegociadaEm" DATE,
+    "renegociadaNoId" TEXT,
+    "acordoId" TEXT,
 
     CONSTRAINT "Parcela_pkey" PRIMARY KEY ("id")
 );
@@ -264,6 +267,33 @@ CREATE TABLE "Auditoria" (
     CONSTRAINT "Auditoria_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "Acordo" (
+    "id" TEXT NOT NULL,
+    "numero" SERIAL NOT NULL,
+    "contratoId" TEXT NOT NULL,
+    "totalOriginal" DECIMAL(12,2) NOT NULL,
+    "desconto" DECIMAL(12,2) NOT NULL DEFAULT 0,
+    "totalAcordado" DECIMAL(12,2) NOT NULL,
+    "entrada" DECIMAL(12,2) NOT NULL DEFAULT 0,
+    "parcelas" INTEGER NOT NULL,
+    "primeiroVenc" DATE NOT NULL,
+    "observacoes" TEXT,
+    "usuarioNome" TEXT,
+    "criadoEm" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Acordo_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Meta" (
+    "id" TEXT NOT NULL,
+    "mes" TEXT NOT NULL,
+    "valor" DECIMAL(12,2) NOT NULL,
+
+    CONSTRAINT "Meta_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "Usuario_email_key" ON "Usuario"("email");
 
@@ -342,6 +372,15 @@ CREATE INDEX "Auditoria_criadoEm_idx" ON "Auditoria"("criadoEm");
 -- CreateIndex
 CREATE INDEX "Auditoria_entidade_entidadeId_idx" ON "Auditoria"("entidade", "entidadeId");
 
+-- CreateIndex
+CREATE UNIQUE INDEX "Acordo_numero_key" ON "Acordo"("numero");
+
+-- CreateIndex
+CREATE INDEX "Acordo_contratoId_idx" ON "Acordo"("contratoId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Meta_mes_key" ON "Meta"("mes");
+
 -- AddForeignKey
 ALTER TABLE "Contrato" ADD CONSTRAINT "Contrato_clienteId_fkey" FOREIGN KEY ("clienteId") REFERENCES "Cliente"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
@@ -356,6 +395,12 @@ ALTER TABLE "ContratoPonto" ADD CONSTRAINT "ContratoPonto_pontoId_fkey" FOREIGN 
 
 -- AddForeignKey
 ALTER TABLE "Parcela" ADD CONSTRAINT "Parcela_contratoId_fkey" FOREIGN KEY ("contratoId") REFERENCES "Contrato"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Parcela" ADD CONSTRAINT "Parcela_renegociadaNoId_fkey" FOREIGN KEY ("renegociadaNoId") REFERENCES "Acordo"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Parcela" ADD CONSTRAINT "Parcela_acordoId_fkey" FOREIGN KEY ("acordoId") REFERENCES "Acordo"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Despesa" ADD CONSTRAINT "Despesa_pontoId_fkey" FOREIGN KEY ("pontoId") REFERENCES "Ponto"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -401,4 +446,7 @@ ALTER TABLE "Arquivo" ADD CONSTRAINT "Arquivo_ocorrenciaId_fkey" FOREIGN KEY ("o
 
 -- AddForeignKey
 ALTER TABLE "Arquivo" ADD CONSTRAINT "Arquivo_clienteId_fkey" FOREIGN KEY ("clienteId") REFERENCES "Cliente"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Acordo" ADD CONSTRAINT "Acordo_contratoId_fkey" FOREIGN KEY ("contratoId") REFERENCES "Contrato"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
