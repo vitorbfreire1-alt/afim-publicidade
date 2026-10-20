@@ -17,6 +17,9 @@ export function parcelaDoMes<T extends { vencimento: Date; acordoId: string | nu
  * Quem chama garante antes que nenhum vencimento novo cai em parcela já recebida.
  */
 export async function somarParcelas(tx: Tx, contratoId: string, novas: { vencimento: Date; valor: number }[]) {
+  // Contrato de permuta não gera cobrança.
+  const contrato = await tx.contrato.findUnique({ where: { id: contratoId }, select: { formaPagamento: true } });
+  if (contrato?.formaPagamento === "PERMUTA") return;
   const existentes = await tx.parcela.findMany({ where: { contratoId } });
 
   let provisorio = 2_000_000;

@@ -18,6 +18,9 @@ export const TIPO_SINGULAR: Record<TipoMidia, string> = {
 
 export const FORMAS: FormaPagamento[] = ["PIX", "BOLETO", "TRANSFERENCIA", "CARTAO", "DINHEIRO", "OUTRO"];
 
+/** Formas de pagamento do contrato (a permuta só existe no contrato, não como forma de receber uma parcela). */
+export const FORMAS_CONTRATO: FormaPagamento[] = [...FORMAS, "PERMUTA"];
+
 export const FORMA_LABEL: Record<FormaPagamento, string> = {
   PIX: "PIX",
   BOLETO: "Boleto",
@@ -25,6 +28,7 @@ export const FORMA_LABEL: Record<FormaPagamento, string> = {
   CARTAO: "Cartão",
   DINHEIRO: "Dinheiro",
   OUTRO: "Outro",
+  PERMUTA: "Permuta",
 };
 
 export const STATUS_CONTRATO_LABEL: Record<StatusContrato, string> = {

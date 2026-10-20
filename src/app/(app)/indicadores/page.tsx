@@ -70,6 +70,11 @@ export default async function Indicadores({ searchParams }: { searchParams: Prom
         <div className="card p-4"><p className="label">Ticket médio</p><p className="font-display text-xl font-bold">{money(ind.ticketMedio)}</p><p className="mt-1 text-xs text-ink-soft">{ind.clientesAtivos} cliente(s) ativo(s)</p></div>
         <div className="card p-4"><p className="label">Taxa de inadimplência</p><p className={`font-display text-xl font-bold ${ind.taxaInadimplencia ? "text-danger" : "text-good"}`}>{ind.taxaInadimplencia == null ? "—" : pct(ind.taxaInadimplencia)}</p><p className="mt-1 text-xs text-ink-soft">do vencido em 12 meses</p></div>
       </section>
+      {ind.permuta.contratos > 0 && (
+        <p className="card p-4 text-sm text-ink-soft">
+          <strong className="text-gold-soft">Permuta:</strong> {ind.permuta.contratos} contrato(s) ativo(s) por troca, ocupando espaço sem receber em dinheiro. Valor de referência: {money(ind.permuta.valorReferencia)} por mês (fora da receita acima).
+        </p>
+      )}
 
       <section className="card p-5">
         <h2 className="mb-3 text-sm font-semibold text-gold-soft">Evolução da receita recorrente (12 meses)</h2>

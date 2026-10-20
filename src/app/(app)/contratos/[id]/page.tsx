@@ -13,7 +13,7 @@ import { adicionarPonto, alterarValorPonto, aplicarReajuste, editarContrato, edi
 import { desativarLinkPublico, gerarLinkPublico } from "@/app/actions/publico";
 import FormAcordo from "@/components/FormAcordo";
 import { pode, requireUser } from "@/lib/auth";
-import { FORMAS, FORMA_LABEL as FORMA_ROTULO } from "@/lib/labels";
+import { FORMAS_CONTRATO, FORMA_LABEL as FORMA_ROTULO } from "@/lib/labels";
 import { statusParcela, valorMensalAtual } from "@/lib/financeiro";
 import { addDias, dateBR, hoje, isoDate, money } from "@/lib/format";
 import { linkCobranca } from "@/lib/whatsapp";
@@ -169,7 +169,7 @@ export default async function ContratoPage({ params, searchParams }: {
 
       <section className="card mb-6 grid gap-4 p-4 sm:grid-cols-2 lg:grid-cols-4">
         <div><p className="label">Valor mensal hoje</p><p className="font-semibold">{money(valorMensalAtual(c.pontos))}</p></div>
-        <div><p className="label">Forma de pagamento</p><p>{FORMA_LABEL[c.formaPagamento]}</p></div>
+        <div><p className="label">Forma de pagamento</p><p>{FORMA_LABEL[c.formaPagamento]}{c.permutaDescricao && <span className="text-ink-soft"> · {c.permutaDescricao}</span>}</p></div>
         <div><p className="label">Período</p><p>{dateBR(c.inicio)} a {dateBR(c.fim)}</p></div>
         <div><p className="label">Vencimento</p><p>Todo dia {c.diaVencimento}</p></div>
         {c.vendedor && <div><p className="label">Vendedor</p><p>{c.vendedor.nome}{c.comissaoPct != null && ` · ${Number(c.comissaoPct)}%`}</p></div>}
@@ -270,9 +270,16 @@ export default async function ContratoPage({ params, searchParams }: {
             <div>
               <label className="label" htmlFor="formaPagamento">Forma de pagamento</label>
               <select className="input" id="formaPagamento" name="formaPagamento" defaultValue={c.formaPagamento}>
-                {FORMAS.map((f) => <option key={f} value={f}>{FORMA_ROTULO[f]}</option>)}
+                {FORMAS_CONTRATO.map((f) => <option key={f} value={f}>{FORMA_ROTULO[f]}</option>)}
               </select>
+              <p className="mt-1 text-xs text-ink-faint">Não dá para trocar entre permuta e dinheiro depois de criado.</p>
             </div>
+            {c.formaPagamento === "PERMUTA" && (
+              <div>
+                <label className="label" htmlFor="permutaDescricaoEd">O que é trocado</label>
+                <input className="input" id="permutaDescricaoEd" name="permutaDescricao" defaultValue={c.permutaDescricao ?? ""} />
+              </div>
+            )}
             <div>
               <label className="label" htmlFor="diaVencimentoEd">Dia do vencimento (1 a 28)</label>
               <input className="input" id="diaVencimentoEd" name="diaVencimento" type="number" min={1} max={28} defaultValue={c.diaVencimento} required />
@@ -356,6 +363,7 @@ export default async function ContratoPage({ params, searchParams }: {
       )}
 
       <h2 className="mb-3 font-semibold">Parcelas</h2>
+      {c.formaPagamento === "PERMUTA" && <p className="card mb-3 p-4 text-sm text-ink-soft">Contrato de permuta: não há parcelas a receber. O valor mensal dos pontos é só uma referência e não entra no dinheiro recebido.</p>}
       <div className="card table-wrap">
         <table className="table">
           <thead>

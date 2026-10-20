@@ -29,7 +29,7 @@ CREATE TYPE "StatusOcorrencia" AS ENUM ('ABERTA', 'EM_ANDAMENTO', 'RESOLVIDA');
 CREATE TYPE "CategoriaArquivo" AS ENUM ('FOTO_PONTO', 'VEICULACAO', 'CONTRATO_ASSINADO', 'COMPROVANTE', 'OUTRO');
 
 -- CreateEnum
-CREATE TYPE "FormaPagamento" AS ENUM ('PIX', 'BOLETO', 'TRANSFERENCIA', 'CARTAO', 'DINHEIRO', 'OUTRO');
+CREATE TYPE "FormaPagamento" AS ENUM ('PIX', 'BOLETO', 'TRANSFERENCIA', 'CARTAO', 'DINHEIRO', 'OUTRO', 'PERMUTA');
 
 -- CreateTable
 CREATE TABLE "Usuario" (
@@ -91,6 +91,7 @@ CREATE TABLE "Contrato" (
     "numero" SERIAL NOT NULL,
     "clienteId" TEXT NOT NULL,
     "formaPagamento" "FormaPagamento" NOT NULL DEFAULT 'PIX',
+    "permutaDescricao" TEXT,
     "inicio" DATE NOT NULL,
     "fim" DATE NOT NULL,
     "diaVencimento" INTEGER NOT NULL,

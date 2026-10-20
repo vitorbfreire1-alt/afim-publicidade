@@ -11,7 +11,7 @@ import { janelaDeRenovacao, verificarCotas } from "@/lib/cotas";
 import { addMeses, agregarParcelas, calcularFim, gerarParcelas } from "@/lib/financeiro";
 import { data, inteiro, texto } from "@/lib/form";
 import { dateBR, hoje, parseMoney } from "@/lib/format";
-import { FORMAS } from "@/lib/labels";
+import { FORMAS_CONTRATO } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
 
 export async function criarContrato(fd: FormData) {
@@ -30,7 +30,7 @@ export async function criarContrato(fd: FormData) {
 
   if (!clienteId) volta("Escolha o cliente.");
   if (!pontoIds.length) volta("Escolha ao menos um ponto.");
-  if (!FORMAS.includes(forma)) volta("Escolha a forma de pagamento.");
+  if (!FORMAS_CONTRATO.includes(forma)) volta("Escolha a forma de pagamento.");
   if (!Number.isInteger(diaVencimento) || diaVencimento < 1 || diaVencimento > 28) {
     volta("O dia de vencimento deve ser de 1 a 28.");
   }
@@ -80,7 +80,9 @@ export async function criarContrato(fd: FormData) {
       vendedorId,
       comissaoPct: vendedorId ? comissaoPct : null,
       pontos: { create: comFim },
-      parcelas: { create: agregarParcelas(comFim, diaVencimento) },
+      permutaDescricao: forma === "PERMUTA" ? texto(fd, "permutaDescricao") : null,
+      // Permuta não gera parcelas a receber.
+      parcelas: { create: forma === "PERMUTA" ? [] : agregarParcelas(comFim, diaVencimento) },
     },
   });
   if (propostaId) {
@@ -88,7 +90,7 @@ export async function criarContrato(fd: FormData) {
   }
   await registrar(user, "criou", "Contrato", contrato.id, `Contrato #${contrato.numero} de ${cliente!.nome}`);
   revalidatePath("/", "layout");
-  redirect(msg(`/contratos/${contrato.id}`, "ok", "Contrato criado e parcelas geradas."));
+  redirect(msg(`/contratos/${contrato.id}`, "ok", forma === "PERMUTA" ? "Contrato de permuta criado (sem parcelas a receber)." : "Contrato criado e parcelas geradas."));
 }
 
 /** `volta` é a página para onde retornar (só caminhos internos); por padrão, o próprio contrato. */
@@ -237,12 +239,15 @@ export async function editarContrato(id: string, fd: FormData) {
   const vendedorId = texto(fd, "vendedorId");
   const comissaoBruta = String(fd.get("comissaoPct") ?? "").trim();
   const comissaoPct = comissaoBruta ? Number(comissaoBruta.replace(",", ".")) : null;
-  if (!FORMAS.includes(forma)) volta("Escolha a forma de pagamento.");
+  if (!FORMAS_CONTRATO.includes(forma)) volta("Escolha a forma de pagamento.");
   if (!Number.isInteger(dia) || dia < 1 || dia > 28) volta("O dia de vencimento deve ser de 1 a 28.");
   if (comissaoPct !== null && !(comissaoPct >= 0 && comissaoPct <= 100)) volta("A comissão deve estar entre 0 e 100%.");
 
   const contrato = await prisma.contrato.findUnique({ where: { id }, include: { parcelas: true } });
   if (!contrato) volta("Contrato não encontrado.");
+  if ((forma === "PERMUTA") !== (contrato!.formaPagamento === "PERMUTA")) {
+    volta("Não dá para trocar entre permuta e pagamento em dinheiro num contrato já criado. Encerre este e crie um novo.");
+  }
 
   await prisma.$transaction(async (tx) => {
     if (dia !== contrato!.diaVencimento) {
@@ -254,7 +259,7 @@ export async function editarContrato(id: string, fd: FormData) {
     }
     await tx.contrato.update({
       where: { id },
-      data: { formaPagamento: forma, diaVencimento: dia, vendedorId, comissaoPct: vendedorId ? comissaoPct : null, observacoes: texto(fd, "observacoes") },
+      data: { formaPagamento: forma, permutaDescricao: forma === "PERMUTA" ? texto(fd, "permutaDescricao") : null, diaVencimento: dia, vendedorId, comissaoPct: vendedorId ? comissaoPct : null, observacoes: texto(fd, "observacoes") },
     });
   });
   await registrar(user, "editou", "Contrato", id, `Contrato #${contrato!.numero}${dia !== contrato!.diaVencimento ? ` (vencimento dia ${dia})` : ""}`);

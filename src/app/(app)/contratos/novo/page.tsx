@@ -3,7 +3,7 @@ import PontosDoContrato from "@/components/PontosDoContrato";
 import { criarContrato } from "@/app/actions/contratos";
 import { requireUser } from "@/lib/auth";
 import { isoDate, hoje } from "@/lib/format";
-import { FORMAS, FORMA_LABEL, TIPOS, TIPO_LABEL } from "@/lib/labels";
+import { FORMAS_CONTRATO, FORMA_LABEL, TIPOS, TIPO_LABEL } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -60,8 +60,13 @@ export default async function NovoContrato({ searchParams }: { searchParams: Pro
         <div>
           <label className="label" htmlFor="formaPagamento">Forma de pagamento</label>
           <select className="input" id="formaPagamento" name="formaPagamento" defaultValue="PIX">
-            {FORMAS.map((f) => <option key={f} value={f}>{FORMA_LABEL[f]}</option>)}
+            {FORMAS_CONTRATO.map((f) => <option key={f} value={f}>{FORMA_LABEL[f]}</option>)}
           </select>
+          <p className="mt-1 text-xs text-ink-faint">Permuta: não gera parcelas a receber; o valor de cada ponto serve só de referência.</p>
+        </div>
+        <div>
+          <label className="label" htmlFor="permutaDescricao">O que é trocado (só para permuta)</label>
+          <input className="input" id="permutaDescricao" name="permutaDescricao" placeholder="Ex.: combustível para a frota" />
         </div>
         <div>
           <label className="label" htmlFor="diaVencimento">Dia do vencimento (1 a 28)</label>

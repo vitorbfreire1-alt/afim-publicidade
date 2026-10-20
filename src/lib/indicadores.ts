@@ -14,6 +14,7 @@ export interface Indicadores {
   ocupacaoPorTipo: { tipo: string; pontos: number; comClientes: number; cotasUsadas: number; cotasTotal: number }[];
   vendedores: { nome: string; mrr: number; contratos: number }[];
   porM2: { id: string; nome: string; area: number; mrr: number; porM2: number }[];
+  permuta: { contratos: number; valorReferencia: number };
   funil: { abertas: number; valorAberto: number; fechadas: number; perdidas: number; conversao: number | null };
 }
 
@@ -26,7 +27,7 @@ export async function calcularIndicadores(): Promise<Indicadores> {
   const [cps, pontos, propostas, vencidas12m, emAberto12m] = await Promise.all([
     prisma.contratoPonto.findMany({
       where: { contrato: { status: { not: "CANCELADO" } }, fim: { gte: inicioHistorico } },
-      select: { pontoId: true, valor: true, inicio: true, fim: true, contrato: { select: { id: true, status: true, clienteId: true, vendedor: { select: { nome: true } } } }, ponto: { select: { tipo: true } } },
+      select: { pontoId: true, valor: true, inicio: true, fim: true, contrato: { select: { id: true, status: true, formaPagamento: true, clienteId: true, vendedor: { select: { nome: true } } } }, ponto: { select: { tipo: true } } },
     }),
     prisma.ponto.findMany({ where: { ativo: true }, select: { id: true, nome: true, tipo: true, cotas: true, larguraM: true, alturaM: true } }),
     prisma.proposta.findMany({ select: { status: true, pontos: { select: { valor: true } }, atualizadoEm: true } }),
@@ -34,18 +35,21 @@ export async function calcularIndicadores(): Promise<Indicadores> {
     prisma.parcela.aggregate({ where: { renegociadaEm: null, pagoEm: null, vencimento: { gte: addDias(h, -365), lt: h }, contrato: { status: "ATIVO" } }, _sum: { valor: true } }),
   ]);
 
-  const ativos = cps.filter((c) => c.contrato.status === "ATIVO" && c.inicio <= h && h <= c.fim);
+  // Permuta ocupa o espaço mas não gera receita: fica fora de MRR, risco, vendedores e R$/m².
+  const todosAtivos = cps.filter((c) => c.contrato.status === "ATIVO" && c.inicio <= h && h <= c.fim);
+  const ativos = todosAtivos.filter((c) => c.contrato.formaPagamento !== "PERMUTA");
+  const permutas = todosAtivos.filter((c) => c.contrato.formaPagamento === "PERMUTA");
   const mrr = ativos.reduce((s, c) => s + Number(c.valor), 0);
   const clientes = new Set(ativos.map((c) => c.contrato.clienteId));
 
   // Receita que vence nos próximos 90 dias (precisa de renovação).
-  const risco = cps.filter((c) => c.contrato.status === "ATIVO" && c.fim >= h && c.fim <= addDias(h, 90));
+  const risco = cps.filter((c) => c.contrato.formaPagamento !== "PERMUTA" && c.contrato.status === "ATIVO" && c.fim >= h && c.fim <= addDias(h, 90));
 
   // Evolução da receita recorrente, mês a mês (valor atual de cada ponto enquanto o período o cobre).
   const mrrPorMes = Array.from({ length: 12 }, (_, i) => {
     const ini = addMeses(inicioHistorico, i, 1);
     const fim = new Date(Date.UTC(ini.getUTCFullYear(), ini.getUTCMonth() + 1, 0));
-    const valor = cps.filter((c) => c.inicio <= fim && c.fim >= ini).reduce((s, c) => s + Number(c.valor), 0);
+    const valor = cps.filter((c) => c.contrato.formaPagamento !== "PERMUTA" && c.inicio <= fim && c.fim >= ini).reduce((s, c) => s + Number(c.valor), 0);
     return {
       rotulo: new Intl.DateTimeFormat("pt-BR", { month: "short", timeZone: "UTC" }).format(ini).replace(".", ""),
       valor,
@@ -55,7 +59,7 @@ export async function calcularIndicadores(): Promise<Indicadores> {
 
   const ocupacaoPorTipo = (["LED", "TOTEM", "TRIEDRO", "OUTDOOR"] as const).map((tipo) => {
     const doTipo = pontos.filter((p) => p.tipo === tipo);
-    const vigentes = ativos.filter((c) => c.ponto.tipo === tipo);
+    const vigentes = todosAtivos.filter((c) => c.ponto.tipo === tipo);
     return {
       tipo,
       pontos: doTipo.length,
@@ -104,6 +108,7 @@ export async function calcularIndicadores(): Promise<Indicadores> {
     ocupacaoPorTipo,
     vendedores: [...porVend.entries()].map(([nome, v]) => ({ nome, mrr: v.mrr, contratos: v.contratos.size })).sort((a, b) => b.mrr - a.mrr),
     porM2,
+    permuta: { contratos: new Set(permutas.map((c) => c.contrato.id)).size, valorReferencia: permutas.reduce((s, c) => s + Number(c.valor), 0) },
     funil: {
       abertas: abertas.length,
       valorAberto: abertas.reduce((s, p) => s + p.pontos.reduce((t, x) => t + Number(x.valor), 0), 0),

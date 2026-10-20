@@ -84,6 +84,7 @@ enum FormaPagamento {
   CARTAO
   DINHEIRO
   OUTRO
+  PERMUTA
 }
 
 model Usuario {
@@ -157,6 +158,8 @@ model Contrato {
   clienteId      String
   cliente        Cliente         @relation(fields: [clienteId], references: [id], onDelete: Restrict)
   formaPagamento FormaPagamento  @default(PIX)
+  // Só para forma PERMUTA: o que o cliente dá em troca (não gera parcelas a receber).
+  permutaDescricao String?
   // Derivados dos pontos: menor início e maior fim (cada ponto tem o seu prazo e valor).
   inicio         DateTime        @db.Date
   fim            DateTime        @db.Date
