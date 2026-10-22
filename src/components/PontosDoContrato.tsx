@@ -5,7 +5,7 @@ import MaskedInput from "./MaskedInput";
 
 export interface GrupoPontos {
   titulo: string;
-  pontos: { id: string; nome: string; ocupacao: string | null; lotado: boolean }[];
+  pontos: { id: string; nome: string; ocupacao: string | null; lotado: boolean; temCotas: boolean }[];
 }
 
 /** Escolha dos pontos do contrato; cada ponto marcado pede o seu valor mensal, início e prazo. */
@@ -67,6 +67,13 @@ export default function PontosDoContrato({ grupos, hojeISO, inicial = {}, prazoP
                       <label className="label" htmlFor={`prazo_${p.id}`}>Prazo (meses)</label>
                       <input className="input" id={`prazo_${p.id}`} name={`prazo_${p.id}`} type="number" min={1} max={120} defaultValue={prazoPadrao} required />
                     </div>
+                    {p.temCotas && (
+                      <label className="flex items-center gap-2 text-sm sm:col-span-3">
+                        <input type="checkbox" name={`inteiro_${p.id}`} className="size-4 accent-[#d4a62a]" />
+                        Reservar o ponto inteiro (ocupa todas as cotas)
+                        <span className="text-xs text-ink-faint">— use em contratos anuais, em que o cliente fica com a placa toda</span>
+                      </label>
+                    )}
                   </div>
                 )}
               </div>

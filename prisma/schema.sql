@@ -117,6 +117,7 @@ CREATE TABLE "ContratoPonto" (
     "prazoMeses" INTEGER NOT NULL,
     "fim" DATE NOT NULL,
     "renovacao" "StatusRenovacao" NOT NULL DEFAULT 'A_CONTATAR',
+    "ocupaTudo" BOOLEAN NOT NULL DEFAULT false,
 
     CONSTRAINT "ContratoPonto_pkey" PRIMARY KEY ("contratoId","pontoId")
 );

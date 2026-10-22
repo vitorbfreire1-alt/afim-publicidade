@@ -4,6 +4,7 @@ import { criarContrato } from "@/app/actions/contratos";
 import { requireUser } from "@/lib/auth";
 import { isoDate, hoje } from "@/lib/format";
 import { FORMAS_CONTRATO, FORMA_LABEL, TIPOS, TIPO_LABEL } from "@/lib/labels";
+import { ocupadasEm } from "@/lib/cotas";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -23,7 +24,7 @@ export default async function NovoContrato({ searchParams }: { searchParams: Pro
     prisma.ponto.findMany({
       where: { ativo: true },
       orderBy: { nome: "asc" },
-      include: { contratos: { where: { contrato: { status: "ATIVO" } }, select: { inicio: true, fim: true } } },
+      include: { contratos: { where: { contrato: { status: "ATIVO" } }, select: { inicio: true, fim: true, ocupaTudo: true } } },
     }),
     prisma.usuario.findMany({ where: { ativo: true }, orderBy: { nome: "asc" } }),
   ]);
@@ -51,8 +52,8 @@ export default async function NovoContrato({ searchParams }: { searchParams: Pro
             pontos: pontos
               .filter((p) => p.tipo === t)
               .map((p) => {
-                const agora = p.contratos.filter((c) => c.inicio <= h && h <= c.fim).length;
-                return { id: p.id, nome: p.nome, ocupacao: p.cotas ? `${agora}/${p.cotas} cotas hoje` : agora > 0 ? `${agora} cliente(s) hoje` : null, lotado: Boolean(p.cotas && agora >= p.cotas) };
+                const agora = ocupadasEm(p.contratos, p.cotas, h);
+                return { id: p.id, nome: p.nome, ocupacao: p.cotas ? `${agora}/${p.cotas} cotas hoje` : agora > 0 ? `${agora} cliente(s) hoje` : null, lotado: Boolean(p.cotas && agora >= p.cotas), temCotas: Boolean(p.cotas) };
               }),
           })).filter((g) => g.pontos.length > 0)}
         />

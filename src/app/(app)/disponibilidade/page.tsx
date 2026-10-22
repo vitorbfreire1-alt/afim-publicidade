@@ -25,7 +25,7 @@ export default async function Disponibilidade({ searchParams }: { searchParams: 
   const pontos = await prisma.ponto.findMany({
     where: { ativo: true, tipo },
     orderBy: { nome: "asc" },
-    include: { contratos: { where: { contrato: { status: "ATIVO" } }, select: { inicio: true, fim: true } } },
+    include: { contratos: { where: { contrato: { status: "ATIVO" } }, select: { inicio: true, fim: true, ocupaTudo: true } } },
   });
 
   return (
@@ -62,7 +62,7 @@ export default async function Disponibilidade({ searchParams }: { searchParams: 
                 </td>
                 {meses.map((d) => {
                   const fim = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0));
-                  const ocupadas = picoDeOcupacao(p.contratos, { inicio: d, fim });
+                  const ocupadas = picoDeOcupacao(p.contratos, { inicio: d, fim }, p.cotas);
                   const cheio = p.cotas ? ocupadas >= p.cotas : false;
                   const cor = ocupadas === 0 ? "text-good bg-good/10" : cheio ? "text-danger bg-danger/10" : "text-warn bg-warn/10";
                   const texto = p.cotas ? `${ocupadas}/${p.cotas}` : ocupadas === 0 ? "livre" : String(ocupadas);

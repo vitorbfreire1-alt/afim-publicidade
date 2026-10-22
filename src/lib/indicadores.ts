@@ -1,4 +1,5 @@
 import { addMeses } from "./financeiro";
+import { pesoNoPonto } from "./cotas";
 import { addDias, hoje } from "./format";
 import { prisma } from "./prisma";
 
@@ -27,7 +28,7 @@ export async function calcularIndicadores(): Promise<Indicadores> {
   const [cps, pontos, propostas, vencidas12m, emAberto12m] = await Promise.all([
     prisma.contratoPonto.findMany({
       where: { contrato: { status: { not: "CANCELADO" } }, fim: { gte: inicioHistorico } },
-      select: { pontoId: true, valor: true, inicio: true, fim: true, contrato: { select: { id: true, status: true, formaPagamento: true, clienteId: true, vendedor: { select: { nome: true } } } }, ponto: { select: { tipo: true } } },
+      select: { pontoId: true, valor: true, inicio: true, fim: true, ocupaTudo: true, contrato: { select: { id: true, status: true, formaPagamento: true, clienteId: true, vendedor: { select: { nome: true } } } }, ponto: { select: { tipo: true, cotas: true } } },
     }),
     prisma.ponto.findMany({ where: { ativo: true }, select: { id: true, nome: true, tipo: true, cotas: true, larguraM: true, alturaM: true } }),
     prisma.proposta.findMany({ select: { status: true, pontos: { select: { valor: true } }, atualizadoEm: true } }),
@@ -64,7 +65,7 @@ export async function calcularIndicadores(): Promise<Indicadores> {
       tipo,
       pontos: doTipo.length,
       comClientes: doTipo.filter((p) => vigentes.some((c) => c.pontoId === p.id)).length,
-      cotasUsadas: vigentes.filter((c) => doTipo.some((p) => p.id === c.pontoId && p.cotas)).length,
+      cotasUsadas: vigentes.filter((c) => doTipo.some((p) => p.id === c.pontoId && p.cotas)).reduce((s, c) => s + pesoNoPonto(c, c.ponto.cotas), 0),
       cotasTotal: doTipo.reduce((s, p) => s + (p.cotas ?? 0), 0),
     };
   });

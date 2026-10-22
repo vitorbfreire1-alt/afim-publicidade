@@ -203,6 +203,8 @@ model ContratoPonto {
   fim        DateTime @db.Date
   // Conversa de renovação (volta a "A contatar" quando o ponto é renovado).
   renovacao  StatusRenovacao @default(A_CONTATAR)
+  // Reserva o ponto inteiro (ocupa todas as cotas), ex.: outdoor contratado por um ano.
+  ocupaTudo  Boolean @default(false)
 
   @@id([contratoId, pontoId])
   @@index([pontoId])

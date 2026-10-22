@@ -8,6 +8,7 @@ import PontoForm from "@/components/PontoForm";
 import { lancarCustosPonto } from "@/app/actions/custos";
 import { alternarPonto, atualizarPonto } from "@/app/actions/pontos";
 import { pode, requireUser } from "@/lib/auth";
+import { ocupadasEm } from "@/lib/cotas";
 import { dateBR, hoje, money } from "@/lib/format";
 import { CUSTO_ITENS, CUSTO_LABEL, CUSTO_TROCA, STATUS_CONTRATO_LABEL, TIPO_SINGULAR } from "@/lib/labels";
 import { lucroPorPonto, ultimosMeses } from "@/lib/lucro";
@@ -44,7 +45,7 @@ export default async function PontoPage({ params, searchParams }: {
   const linkMapa = mapa
     ? `https://www.google.com/maps/search/?api=1&query=${mapa}`
     : ponto.endereco ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ponto.endereco)}` : null;
-  const ativos = ponto.contratos.filter((c) => c.contrato.status === "ATIVO" && c.inicio <= h && h <= c.fim).length;
+  const ativos = ocupadasEm(ponto.contratos.filter((c) => c.contrato.status === "ATIVO"), ponto.cotas, h);
 
   return (
     <main className="max-w-4xl space-y-6">
@@ -57,7 +58,7 @@ export default async function PontoPage({ params, searchParams }: {
             {ponto.larguraM != null && ponto.alturaM != null && ` · ${Number(ponto.larguraM)} × ${Number(ponto.alturaM)} m`}
             {ponto.formato && ` · formato ${ponto.formato}`}
             {ponto.resolucao && ` · ${ponto.resolucao}`}
-            {` · ${ativos}${ponto.cotas ? `/${ponto.cotas}` : ""} cliente(s) hoje`}
+            {ponto.cotas ? ` · ${ativos}/${ponto.cotas} cota(s) ocupada(s) hoje` : ` · ${ativos} cliente(s) hoje`}
           </p>
         </div>
         <div className="flex gap-2">

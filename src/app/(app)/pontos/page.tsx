@@ -3,6 +3,7 @@ import AbrirLink from "@/components/AbrirLink";
 import Flash from "@/components/Flash";
 import { pode, requireUser } from "@/lib/auth";
 import { TIPOS, TIPO_LABEL, isTipo } from "@/lib/labels";
+import { ocupadasEm } from "@/lib/cotas";
 import { hoje } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 
@@ -62,16 +63,16 @@ export default async function Pontos({ searchParams }: { searchParams: Promise<{
                   <td><Link className="font-medium hover:text-gold" href={`/pontos/${p.id}`}>{p.nome}</Link></td>
                   <td>{p.endereco ?? "—"}</td>
                   <td className="whitespace-nowrap">
-                    {p.cotas ? <Ocupacao ocupadas={p.contratos.filter((c) => c.inicio <= h && h <= c.fim).length} cotas={p.cotas} /> : <span className="text-ink-faint">Sem limite</span>}
+                    {p.cotas ? <Ocupacao ocupadas={ocupadasEm(p.contratos, p.cotas, h)} cotas={p.cotas} /> : <span className="text-ink-faint">Sem limite</span>}
                   </td>
                   <td>
                     {!p.ativo ? "Desativado" : p.contratos.length === 0 ? (
                       <span className="text-good">Sem clientes</span>
                     ) : (
                       <ul className="space-y-0.5">
-                        {p.contratos.map(({ contrato: c }) => (
+                        {p.contratos.map(({ contrato: c, ocupaTudo }) => (
                           <li key={c.id}>
-                            <Link className="text-warn hover:underline" href={`/contratos/${c.id}`}>{c.cliente.nome}</Link>
+                            <Link className="text-warn hover:underline" href={`/contratos/${c.id}`}>{c.cliente.nome}</Link>{ocupaTudo && <span className="ml-1 text-xs text-ink-faint">· ponto inteiro</span>}
                           </li>
                         ))}
                       </ul>

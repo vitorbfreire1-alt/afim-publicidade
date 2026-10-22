@@ -10,7 +10,7 @@ import Flash from "@/components/Flash";
 import MaskedInput from "@/components/MaskedInput";
 import ReceberParcela from "@/components/ReceberParcela";
 import StatusBadge from "@/components/StatusBadge";
-import { adicionarPonto, alterarValorPonto, alterarDatasPonto, aplicarReajuste, comecarControleEm, editarContrato, editarParcela, encerrarPonto, mudarStatusContrato, renovarPonto, trocarPonto } from "@/app/actions/contratos";
+import { adicionarPonto, alterarValorPonto, alterarDatasPonto, alterarReservaPonto, aplicarReajuste, comecarControleEm, editarContrato, editarParcela, encerrarPonto, mudarStatusContrato, renovarPonto, trocarPonto } from "@/app/actions/contratos";
 import { adicionarParcela, excluirParcela, reparcelarContrato } from "@/app/actions/parcelas";
 import { desativarLinkPublico, gerarLinkPublico } from "@/app/actions/publico";
 import FormAcordo from "@/components/FormAcordo";
@@ -265,9 +265,20 @@ export default async function ContratoPage({ params, searchParams }: {
                     {c.pontos.map((cp) => (
                       <details key={cp.pontoId} className="card p-3">
                         <summary className="cursor-pointer text-sm font-semibold">
-                          {cp.ponto.nome} <span className="font-normal text-ink-soft">· {dateBR(cp.inicio)} a {dateBR(cp.fim)} · {money(cp.valor)}</span>
+                          {cp.ponto.nome} <span className="font-normal text-ink-soft">· {dateBR(cp.inicio)} a {dateBR(cp.fim)} · {money(cp.valor)}{cp.ocupaTudo && " · ponto inteiro"}</span>
                         </summary>
                         <div className="mt-3 grid gap-4 md:grid-cols-2">
+                          {cp.ponto.cotas && (
+                            <form action={alterarReservaPonto.bind(null, id, cp.pontoId)} className="grid gap-2 md:col-span-2">
+                              <p className="text-xs font-semibold text-gold-soft">Reserva do ponto</p>
+                              <label className="flex items-center gap-2 text-sm">
+                                <input type="checkbox" name="ocupaTudo" defaultChecked={cp.ocupaTudo} className="size-4 accent-[#d4a62a]" />
+                                Reservar o ponto inteiro (ocupa todas as {cp.ponto.cotas} cotas)
+                              </label>
+                              <p className="text-xs text-ink-faint">Use em contratos anuais, em que o cliente fica com a placa toda. Desmarcado, o contrato ocupa só uma cota.</p>
+                              <button className="btn btn-sm w-fit" type="submit">Salvar reserva</button>
+                            </form>
+                          )}
                           <form action={renovarPonto.bind(null, id, cp.pontoId)} className="grid gap-2">
                                                     <p className="text-xs font-semibold text-gold-soft">Renovar</p>
                                                     <input className="input" name="meses" type="number" min={1} max={120} defaultValue={12} required aria-label="Renovar por (meses)" />
@@ -335,6 +346,10 @@ export default async function ContratoPage({ params, searchParams }: {
                                         <label className="label" htmlFor="prazoMeses">Prazo (meses)</label>
                                         <input className="input" id="prazoMeses" name="prazoMeses" type="number" min={1} max={120} defaultValue={12} required />
                                       </div>
+                                      <label className="flex items-center gap-2 text-sm sm:col-span-2">
+                                        <input type="checkbox" name="ocupaTudo" className="size-4 accent-[#d4a62a]" />
+                                        Reservar o ponto inteiro (ocupa todas as cotas)
+                                      </label>
                                       <div className="flex items-end">
                                         <button className="btn btn-gold w-full sm:w-auto" type="submit">Adicionar ponto</button>
                                       </div>
