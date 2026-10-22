@@ -11,7 +11,7 @@ import MaskedInput from "@/components/MaskedInput";
 import ReceberParcela from "@/components/ReceberParcela";
 import StatusBadge from "@/components/StatusBadge";
 import { adicionarPonto, alterarValorPonto, alterarDatasPonto, alterarReservaPonto, aplicarReajuste, comecarControleEm, editarContrato, editarParcela, encerrarPonto, mudarStatusContrato, renovarPonto, trocarPonto } from "@/app/actions/contratos";
-import { adicionarParcela, excluirParcela, reparcelarContrato } from "@/app/actions/parcelas";
+import { adicionarParcela, dividirParcela, dividirParcelasDoContrato, excluirParcela, reparcelarContrato } from "@/app/actions/parcelas";
 import { desativarLinkPublico, gerarLinkPublico } from "@/app/actions/publico";
 import FormAcordo from "@/components/FormAcordo";
 import { pode, requireUser } from "@/lib/auth";
@@ -390,14 +390,10 @@ export default async function ContratoPage({ params, searchParams }: {
                             <p className="text-sm text-ink-soft">Não há parcelas a vencer para dividir. Para dívidas já vencidas, use a aba <strong>Dívida</strong>.</p>
                           ) : (
                             <>
-                              <p className="mb-2 text-xs text-ink-soft">
-                                Faltam <strong className="text-gold-soft">{aDividir.length}</strong> parcela(s) a vencer, somando <strong className="text-gold-soft">{money(totalADividir)}</strong>.
-                                Elas serão trocadas por parcelas mensais iguais. Parcelas já pagas ou vencidas não mudam.
-                              </p>
                               <form action={reparcelarContrato.bind(null, id)} className="mt-3 grid gap-3 sm:grid-cols-2">
                                               <p className="text-xs text-ink-soft sm:col-span-2">
                                                 Faltam <strong className="text-gold-soft">{aDividir.length}</strong> parcela(s) a vencer, somando <strong className="text-gold-soft">{money(totalADividir)}</strong>.
-                                                Elas serão trocadas por parcelas mensais iguais. Parcelas já pagas ou vencidas não mudam.
+                                                O total delas será dividido em parcelas iguais. Parcelas já pagas ou vencidas não mudam.
                                               </p>
                                               <div>
                                                 <label className="label" htmlFor="vezes">Dividir em quantas vezes</label>
@@ -406,6 +402,14 @@ export default async function ContratoPage({ params, searchParams }: {
                                               <div>
                                                 <label className="label" htmlFor="primeiro">1º vencimento novo</label>
                                                 <input className="input" id="primeiro" name="primeiro" type="date" defaultValue={isoDate(aDividir[0].vencimento)} required />
+                                              </div>
+                                              <div className="sm:col-span-2">
+                                                <label className="label" htmlFor="intervalo">Intervalo entre as parcelas</label>
+                                                <select className="input" id="intervalo" name="intervalo" defaultValue="mensal">
+                                                  <option value="mensal">Mensal (todo mês, no mesmo dia)</option>
+                                                  <option value="15">A cada 15 dias</option>
+                                                  <option value="7">A cada 7 dias (semanal)</option>
+                                                </select>
                                               </div>
                                               <div className="sm:col-span-2">
                                                 <ConfirmButton className="btn btn-gold" mensagem="Refazer o parcelamento? As parcelas a vencer serão substituídas pelas novas.">Refazer parcelamento</ConfirmButton>
@@ -417,6 +421,28 @@ export default async function ContratoPage({ params, searchParams }: {
                       </>
                     ) : (
                       <p className="text-sm text-ink-soft">Sem permissão para alterar parcelas, ou contrato de permuta (sem parcelas).</p>
+                    )}
+                    {pode(user, "baixar") && c.formaPagamento !== "PERMUTA" && aDividir.length > 0 && (
+                      <div className="border-t border-line pt-4">
+                        <p className="mb-1 text-sm font-semibold text-gold-soft">Dividir cada parcela em vários pagamentos</p>
+                        <p className="mb-2 text-xs text-ink-soft">Para o cliente que fecha a mensalidade, mas paga em partes: por exemplo, cada parcela de R$ 1.000 vira 2 pagamentos de R$ 500, a cada 15 dias. Vale para as {aDividir.length} parcela(s) que ainda vão vencer.</p>
+                        <form action={dividirParcelasDoContrato.bind(null, id)} className="grid gap-3 sm:grid-cols-2">
+                          <div>
+                            <label className="label" htmlFor="partesTodas">Pagamentos por parcela</label>
+                            <input className="input" id="partesTodas" name="partes" type="number" min={2} max={12} defaultValue={2} required />
+                          </div>
+                          <div>
+                            <label className="label" htmlFor="intervaloTodas">Intervalo</label>
+                            <select className="input" id="intervaloTodas" name="intervalo" defaultValue="15">
+                              <option value="15">A cada 15 dias</option>
+                              <option value="7">A cada 7 dias (semanal)</option>
+                            </select>
+                          </div>
+                          <div className="sm:col-span-2">
+                            <ConfirmButton className="btn btn-gold" mensagem="Dividir cada parcela a vencer em vários pagamentos? As parcelas atuais serão substituídas.">Dividir cada parcela</ConfirmButton>
+                          </div>
+                        </form>
+                      </div>
                     )}
                     <div className="border-t border-line pt-4">
                       <form action={comecarControleEm.bind(null, id)} className="mt-5 grid gap-3 border-t border-white/10 pt-4 sm:grid-cols-2">
@@ -563,12 +589,23 @@ export default async function ContratoPage({ params, searchParams }: {
                         </div>
                         <button className="btn btn-gold" type="submit">Salvar parcela</button>
                       </form>
-                      {!p.acordoId && (
-                        <form action={excluirParcela.bind(null, p.id, volta)} className="mt-2">
-                          <ConfirmButton className="btn btn-sm btn-danger" mensagem="Excluir esta parcela? Ela deixa de ser cobrada e as demais são renumeradas.">Excluir parcela</ConfirmButton>
-                        </form>
-                      )}
+                      <form action={dividirParcela.bind(null, p.id, volta)} className="card mt-2 grid min-w-60 gap-2 p-3">
+                        <p className="text-xs font-semibold text-gold-soft">Dividir esta parcela</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          <input className="input" name="partes" type="number" min={2} max={12} defaultValue={2} required aria-label="Quantos pagamentos" />
+                          <select className="input" name="intervalo" defaultValue="15" aria-label="Intervalo">
+                            <option value="15">A cada 15 dias</option>
+                            <option value="7">A cada 7 dias</option>
+                          </select>
+                        </div>
+                        <ConfirmButton className="btn btn-sm" mensagem="Dividir esta parcela em vários pagamentos?">Dividir parcela</ConfirmButton>
+                      </form>
                     </details>
+                  )}
+                  {pode(user, "baixar") && !p.pagoEm && !p.acordoId && (
+                    <form action={excluirParcela.bind(null, p.id, volta)}>
+                      <ConfirmButton className="btn btn-sm btn-danger" mensagem={`Excluir a parcela ${p.numero}/${c.parcelas.length} de ${money(p.valor)} (vence ${dateBR(p.vencimento)})? Ela deixa de ser cobrada e as demais são renumeradas.`}>Excluir</ConfirmButton>
+                    </form>
                   )}
                   </div>
                   )}

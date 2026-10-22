@@ -9,7 +9,7 @@ import { requireUser } from "@/lib/auth";
 import { renumerarParcelas } from "@/lib/contrato";
 import { addMeses } from "@/lib/financeiro";
 import { data, inteiro, texto } from "@/lib/form";
-import { hoje, parseMoney } from "@/lib/format";
+import { addDias, hoje, parseMoney } from "@/lib/format";
 import { FORMAS } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
 
@@ -82,6 +82,7 @@ export async function reparcelarContrato(contratoId: string, fd: FormData) {
   const volta = (tipo: "erro" | "ok", t: string) => redirect(msg(`/contratos/${contratoId}`, tipo, t));
   const n = inteiro(fd, "vezes");
   const primeiro = data(fd, "primeiro");
+  const intervalo = intervaloDias(fd.get("intervalo")); // 0 = mensal
   if (!Number.isInteger(n) || n < 1 || n > 60) volta("erro", "Informe de 1 a 60 parcelas.");
   if (!primeiro) volta("erro", "Informe o vencimento da primeira nova parcela.");
 
@@ -102,7 +103,7 @@ export async function reparcelarContrato(contratoId: string, fd: FormData) {
         data: {
           contratoId,
           numero: 2_000_000 + i,
-          vencimento: addMeses(primeiro!, i, primeiro!.getUTCDate()),
+          vencimento: intervalo ? addDias(primeiro!, i * intervalo) : addMeses(primeiro!, i, primeiro!.getUTCDate()),
           valor: (base + (i === n - 1 ? resto : 0)) / 100,
           observacoes: `Parcelamento refeito em ${n}x`,
         },
@@ -110,7 +111,76 @@ export async function reparcelarContrato(contratoId: string, fd: FormData) {
     }
     await renumerarParcelas(tx, contratoId);
   });
-  await registrar(user, "reparcelou", "Contrato", contratoId, `${abertas.length} parcela(s) a vencer (R$ ${(totalCentavos / 100).toFixed(2)}) em ${n}x`);
+  await registrar(user, "reparcelou", "Contrato", contratoId, `${abertas.length} parcela(s) a vencer (R$ ${(totalCentavos / 100).toFixed(2)}) em ${n}x${intervalo ? ` a cada ${intervalo} dias` : ""}`);
   revalidatePath("/", "layout");
-  volta("ok", `${abertas.length} parcela(s) a vencer viraram ${n} parcela(s) de R$ ${(base / 100).toFixed(2).replace(".", ",")}.`);
+  volta("ok", `${abertas.length} parcela(s) a vencer viraram ${n} parcela(s) de R$ ${(base / 100).toFixed(2).replace(".", ",")}${intervalo ? `, a cada ${intervalo} dias` : ""}.`);
+}
+
+/** Intervalo entre parcelas escolhido no formulário: "15" e "7" são dias; qualquer outra coisa vale "mensal" (0). */
+function intervaloDias(v: FormDataEntryValue | null): number {
+  const n = Number(v);
+  return n === 15 || n === 7 ? n : 0;
+}
+
+type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
+
+/** Troca uma parcela por `partes` parcelas de valores iguais, espaçadas de `intervalo` dias a partir do vencimento original. */
+async function dividirEmPartes(tx: Tx, p: { id: string; contratoId: string; vencimento: Date; valor: unknown }, partes: number, intervalo: number) {
+  const total = Math.round(Number(p.valor) * 100);
+  const base = Math.floor(total / partes);
+  const resto = total - base * partes;
+  await tx.parcela.delete({ where: { id: p.id } });
+  for (let j = 0; j < partes; j++) {
+    await tx.parcela.create({
+      data: {
+        contratoId: p.contratoId,
+        numero: 2_000_000 + j,
+        vencimento: addDias(p.vencimento, j * intervalo),
+        valor: (base + (j === partes - 1 ? resto : 0)) / 100,
+        observacoes: `Dividida em ${partes} pagamentos`,
+      },
+    });
+  }
+}
+
+const dividivel = (p: { pagoEm: Date | null; renegociadaEm: Date | null; acordoId: string | null }) => !p.pagoEm && !p.renegociadaEm && !p.acordoId;
+
+/** Divide UMA parcela em vários pagamentos (ex.: R$ 1.000 vira 2 de R$ 500 a cada 15 dias). */
+export async function dividirParcela(id: string, volta: string, fd: FormData) {
+  const user = await requireUser("baixar");
+  const partes = inteiro(fd, "partes");
+  const intervalo = intervaloDias(fd.get("intervalo")) || 15;
+  if (!Number.isInteger(partes) || partes < 2 || partes > 12) redirect(msg(volta, "erro", "Informe de 2 a 12 pagamentos."));
+  const p = await prisma.parcela.findUnique({ where: { id } });
+  if (!p) redirect(msg(volta, "erro", "Parcela não encontrada."));
+  if (!dividivel(p!)) redirect(msg(volta, "erro", "Só dá para dividir parcelas em aberto e fora de acordo."));
+
+  await prisma.$transaction(async (tx) => {
+    await dividirEmPartes(tx, p!, partes, intervalo);
+    await renumerarParcelas(tx, p!.contratoId);
+  });
+  await registrar(user, "dividiu parcela", "Parcela", id, `${Number(p!.valor)} em ${partes}x a cada ${intervalo} dias`);
+  revalidatePath("/", "layout");
+  redirect(msg(volta, "ok", `Parcela dividida em ${partes} pagamentos, a cada ${intervalo} dias.`));
+}
+
+/** Divide cada parcela em aberto que ainda vai vencer em vários pagamentos (ex.: mensalidade de R$ 1.000 em 2 de R$ 500 a cada 15 dias). */
+export async function dividirParcelasDoContrato(contratoId: string, fd: FormData) {
+  const user = await requireUser("baixar");
+  const volta = (tipo: "erro" | "ok", t: string) => redirect(msg(`/contratos/${contratoId}`, tipo, t));
+  const partes = inteiro(fd, "partes");
+  const intervalo = intervaloDias(fd.get("intervalo")) || 15;
+  if (!Number.isInteger(partes) || partes < 2 || partes > 12) volta("erro", "Informe de 2 a 12 pagamentos por parcela.");
+
+  const h = hoje();
+  const alvo = (await prisma.parcela.findMany({ where: { contratoId } })).filter((p) => dividivel(p) && p.vencimento >= h);
+  if (!alvo.length) volta("erro", "Não há parcelas a vencer para dividir.");
+
+  await prisma.$transaction(async (tx) => {
+    for (const p of alvo) await dividirEmPartes(tx, p, partes, intervalo);
+    await renumerarParcelas(tx, contratoId);
+  });
+  await registrar(user, "dividiu parcelas", "Contrato", contratoId, `${alvo.length} parcela(s) em ${partes}x a cada ${intervalo} dias`);
+  revalidatePath("/", "layout");
+  volta("ok", `${alvo.length} parcela(s) divididas em ${partes} pagamentos cada, a cada ${intervalo} dias.`);
 }
