@@ -391,3 +391,35 @@ export async function comecarControleEm(contratoId: string, fd: FormData) {
   revalidatePath("/", "layout");
   volta("ok", `${saem.length} parcela(s) anteriores a ${dateBR(corte!)} foram retiradas. O sistema passa a controlar o contrato a partir dessa data.`);
 }
+
+/**
+ * Corrige as datas de veiculação de um ponto do contrato (início e fim).
+ * As parcelas não mudam: valor e vencimento continuam como estão (use "Editar parcela" para ajustá-las).
+ */
+export async function alterarDatasPonto(contratoId: string, pontoId: string, fd: FormData) {
+  const user = await requireUser("editar", "valores");
+  const volta = (t: string) => redirect(msg(`/contratos/${contratoId}`, "erro", t));
+  const inicio = data(fd, "inicio");
+  const fim = data(fd, "fim");
+  if (!inicio || !fim) volta("Informe a data de início e a de fim.");
+  if (fim! < inicio!) volta("A data de fim não pode ser anterior à de início.");
+
+  const cp = await prisma.contratoPonto.findUnique({
+    where: { contratoId_pontoId: { contratoId, pontoId } },
+    include: { ponto: true, contrato: true },
+  });
+  if (!cp || cp.contrato.status !== "ATIVO") volta("Só é possível alterar contratos ativos.");
+  if (inicio!.getTime() === cp!.inicio.getTime() && fim!.getTime() === cp!.fim.getTime()) volta("As datas informadas são iguais às atuais.");
+
+  const lotado = await verificarCotas([{ pontoId, inicio: inicio!, fim: fim! }], contratoId);
+  if (lotado) volta(lotado);
+
+  const prazoMeses = Math.max(1, Math.round(((fim!.getTime() - inicio!.getTime()) / 86_400_000 + 1) / 30.4));
+  await prisma.$transaction(async (tx) => {
+    await tx.contratoPonto.update({ where: { contratoId_pontoId: { contratoId, pontoId } }, data: { inicio: inicio!, fim: fim!, prazoMeses } });
+    await recalcularPeriodo(tx, contratoId);
+  });
+  await registrar(user, "alterou datas do ponto", "Contrato", contratoId, `${cp!.ponto.nome}: ${dateBR(cp!.inicio)}–${dateBR(cp!.fim)} → ${dateBR(inicio!)}–${dateBR(fim!)}`);
+  revalidatePath("/", "layout");
+  redirect(msg(`/contratos/${contratoId}`, "ok", "Datas do ponto atualizadas. As parcelas não foram alteradas."));
+}

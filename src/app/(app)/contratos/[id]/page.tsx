@@ -9,7 +9,7 @@ import Flash from "@/components/Flash";
 import MaskedInput from "@/components/MaskedInput";
 import ReceberParcela from "@/components/ReceberParcela";
 import StatusBadge from "@/components/StatusBadge";
-import { adicionarPonto, alterarValorPonto, aplicarReajuste, comecarControleEm, editarContrato, editarParcela, encerrarPonto, mudarStatusContrato, renovarPonto } from "@/app/actions/contratos";
+import { adicionarPonto, alterarValorPonto, alterarDatasPonto, aplicarReajuste, comecarControleEm, editarContrato, editarParcela, encerrarPonto, mudarStatusContrato, renovarPonto } from "@/app/actions/contratos";
 import { desativarLinkPublico, gerarLinkPublico } from "@/app/actions/publico";
 import FormAcordo from "@/components/FormAcordo";
 import { pode, requireUser } from "@/lib/auth";
@@ -204,6 +204,15 @@ export default async function ContratoPage({ params, searchParams }: {
                           <input className="input" name="meses" type="number" min={1} max={120} defaultValue={12} required aria-label="Renovar por (meses)" />
                           <MaskedInput className="input" name="valor" mask="dinheiro" placeholder="Novo valor (opcional)" aria-label="Novo valor mensal (opcional)" />
                           <button className="btn btn-sm btn-gold" type="submit">Renovar por N meses</button>
+                        </form>
+                        <form action={alterarDatasPonto.bind(null, id, cp.pontoId)} className="grid gap-2 border-t border-line pt-3">
+                          <p className="text-xs font-semibold text-gold-soft">Alterar datas de veiculação</p>
+                          <label className="text-xs text-ink-faint" htmlFor={`ini-${cp.pontoId}`}>Início</label>
+                          <input className="input" id={`ini-${cp.pontoId}`} name="inicio" type="date" defaultValue={isoDate(cp.inicio)} required />
+                          <label className="text-xs text-ink-faint" htmlFor={`fim-${cp.pontoId}`}>Fim</label>
+                          <input className="input" id={`fim-${cp.pontoId}`} name="fim" type="date" defaultValue={isoDate(cp.fim)} required />
+                          <ConfirmButton className="btn btn-sm" mensagem="Alterar as datas de veiculação deste ponto? As parcelas não mudam.">Alterar datas</ConfirmButton>
+                          <p className="text-xs text-ink-faint">Só muda o período do ponto (ocupação, vagas e avisos de fim). As parcelas continuam como estão.</p>
                         </form>
                         <form action={alterarValorPonto.bind(null, id, cp.pontoId)} className="grid gap-2 border-t border-line pt-3">
                           <p className="text-xs font-semibold text-gold-soft">Alterar valor mensal (parcelas futuras)</p>
