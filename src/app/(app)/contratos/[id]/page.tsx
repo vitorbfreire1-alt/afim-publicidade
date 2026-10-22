@@ -9,7 +9,7 @@ import Flash from "@/components/Flash";
 import MaskedInput from "@/components/MaskedInput";
 import ReceberParcela from "@/components/ReceberParcela";
 import StatusBadge from "@/components/StatusBadge";
-import { adicionarPonto, alterarValorPonto, aplicarReajuste, editarContrato, editarParcela, encerrarPonto, mudarStatusContrato, renovarPonto } from "@/app/actions/contratos";
+import { adicionarPonto, alterarValorPonto, aplicarReajuste, comecarControleEm, editarContrato, editarParcela, encerrarPonto, mudarStatusContrato, renovarPonto } from "@/app/actions/contratos";
 import { desativarLinkPublico, gerarLinkPublico } from "@/app/actions/publico";
 import FormAcordo from "@/components/FormAcordo";
 import { pode, requireUser } from "@/lib/auth";
@@ -302,6 +302,19 @@ export default async function ContratoPage({ params, searchParams }: {
               <textarea className="input" id="observacoesEd" name="observacoes" rows={2} defaultValue={c.observacoes ?? ""} />
             </div>
             <div className="sm:col-span-2"><button className="btn btn-gold" type="submit">Salvar alterações</button></div>
+          </form>
+          <form action={comecarControleEm.bind(null, id)} className="mt-5 grid gap-3 border-t border-white/10 pt-4 sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <p className="text-sm font-semibold text-gold-soft">Começar a controlar a partir de uma data</p>
+              <p className="mt-1 text-xs text-ink-soft">Use para contratos que já vinham de antes: as parcelas com vencimento anterior à data saem do sistema (pagas ou não). As datas de veiculação e os pontos continuam iguais.</p>
+            </div>
+            <div>
+              <label className="label" htmlFor="corte">Controlar a partir de</label>
+              <input className="input" id="corte" name="corte" type="date" defaultValue={isoDate(new Date(Date.UTC(hoje().getUTCFullYear(), hoje().getUTCMonth(), 1)))} required />
+            </div>
+            <div className="flex items-end">
+              <ConfirmButton className="btn btn-sm btn-danger" mensagem="Retirar do sistema as parcelas anteriores a essa data? Isso não pode ser desfeito.">Retirar parcelas anteriores</ConfirmButton>
+            </div>
           </form>
         </details>
       )}

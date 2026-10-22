@@ -366,3 +366,28 @@ export async function editarParcela(id: string, volta: string, fd: FormData) {
   revalidatePath("/", "layout");
   redirect(msg(volta, "ok", "Parcela atualizada."));
 }
+
+/**
+ * "Começar a controlar a partir de": tira do controle as parcelas com vencimento anterior à data (ex.: meses da gestão antiga).
+ * O contrato, os pontos e as datas de veiculação continuam como estão; só as parcelas anteriores saem da cobrança.
+ */
+export async function comecarControleEm(contratoId: string, fd: FormData) {
+  const user = await requireUser("editar", "valores");
+  const volta = (tipo: "erro" | "ok", t: string) => redirect(msg(`/contratos/${contratoId}`, tipo, t));
+  const corte = data(fd, "corte");
+  if (!corte) volta("erro", "Informe a data a partir da qual o sistema passa a controlar este contrato.");
+
+  const parcelas = await prisma.parcela.findMany({ where: { contratoId } });
+  const saem = parcelas.filter((p) => p.vencimento < corte! && !p.acordoId);
+  if (!saem.length) volta("erro", "Não há parcelas anteriores a essa data.");
+  if (saem.length === parcelas.length) volta("erro", "Isso removeria todas as parcelas do contrato. Escolha uma data anterior ao último vencimento.");
+  if (parcelas.some((p) => p.acordoId && p.vencimento < corte!)) volta("erro", "Há parcelas de acordo anteriores a essa data; escolha uma data posterior a elas ou desfaça o acordo.");
+
+  await prisma.$transaction(async (tx) => {
+    await tx.parcela.deleteMany({ where: { id: { in: saem.map((p) => p.id) } } });
+    await renumerarParcelas(tx, contratoId);
+  });
+  await registrar(user, "iniciou controle em", "Contrato", contratoId, `${dateBR(corte!)}: ${saem.length} parcela(s) anteriores retiradas`);
+  revalidatePath("/", "layout");
+  volta("ok", `${saem.length} parcela(s) anteriores a ${dateBR(corte!)} foram retiradas. O sistema passa a controlar o contrato a partir dessa data.`);
+}
