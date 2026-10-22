@@ -9,7 +9,8 @@ import Flash from "@/components/Flash";
 import MaskedInput from "@/components/MaskedInput";
 import ReceberParcela from "@/components/ReceberParcela";
 import StatusBadge from "@/components/StatusBadge";
-import { adicionarPonto, alterarValorPonto, alterarDatasPonto, aplicarReajuste, comecarControleEm, editarContrato, editarParcela, encerrarPonto, mudarStatusContrato, renovarPonto } from "@/app/actions/contratos";
+import { adicionarPonto, alterarValorPonto, alterarDatasPonto, aplicarReajuste, comecarControleEm, editarContrato, editarParcela, encerrarPonto, mudarStatusContrato, renovarPonto, trocarPonto } from "@/app/actions/contratos";
+import { adicionarParcela, excluirParcela, reparcelarContrato } from "@/app/actions/parcelas";
 import { desativarLinkPublico, gerarLinkPublico } from "@/app/actions/publico";
 import FormAcordo from "@/components/FormAcordo";
 import { pode, requireUser } from "@/lib/auth";
@@ -61,6 +62,8 @@ export default async function ContratoPage({ params, searchParams }: {
     .filter((p) => !p.pagoEm && !p.renegociadaEm && p.vencimento < hojeD)
     .map((p) => ({ id: p.id, rotulo: `${p.numero}/${c.parcelas.length} · venceu ${dateBR(p.vencimento)}`, atualizado: calcularEncargos(Number(p.valor), p.vencimento, regras).total }));
   const proximoMes = addDias(hojeD, 30);
+  const aDividir = c.parcelas.filter((p) => !p.pagoEm && !p.renegociadaEm && !p.acordoId && p.vencimento >= hojeD);
+  const totalADividir = aDividir.reduce((s, p) => s + Number(p.valor), 0);
 
   const anexos = (
       <div className="mt-8 space-y-6">
@@ -204,6 +207,15 @@ export default async function ContratoPage({ params, searchParams }: {
                           <input className="input" name="meses" type="number" min={1} max={120} defaultValue={12} required aria-label="Renovar por (meses)" />
                           <MaskedInput className="input" name="valor" mask="dinheiro" placeholder="Novo valor (opcional)" aria-label="Novo valor mensal (opcional)" />
                           <button className="btn btn-sm btn-gold" type="submit">Renovar por N meses</button>
+                        </form>
+                        <form action={trocarPonto.bind(null, id, cp.pontoId)} className="grid gap-2 border-t border-line pt-3">
+                          <p className="text-xs font-semibold text-gold-soft">Trocar por outro ponto (corrigir cadastro)</p>
+                          <select className="input" name="novoPontoId" required defaultValue="" aria-label="Ponto correto">
+                            <option value="" disabled>Escolha o ponto correto…</option>
+                            {disponiveis.map((p) => <option key={p.id} value={p.id}>{TIPO_SINGULAR[p.tipo]} · {p.nome}</option>)}
+                          </select>
+                          <ConfirmButton className="btn btn-sm" mensagem="Trocar o ponto deste contrato? Valor, datas e parcelas continuam iguais.">Trocar ponto</ConfirmButton>
+                          <p className="text-xs text-ink-faint">Só troca o local; valor, datas e parcelas não mudam.</p>
                         </form>
                         <form action={alterarDatasPonto.bind(null, id, cp.pontoId)} className="grid gap-2 border-t border-line pt-3">
                           <p className="text-xs font-semibold text-gold-soft">Alterar datas de veiculação</p>
@@ -434,6 +446,11 @@ export default async function ContratoPage({ params, searchParams }: {
                         </div>
                         <button className="btn btn-gold" type="submit">Salvar parcela</button>
                       </form>
+                      {!p.acordoId && (
+                        <form action={excluirParcela.bind(null, p.id, volta)} className="mt-2">
+                          <ConfirmButton className="btn btn-sm btn-danger" mensagem="Excluir esta parcela? Ela deixa de ser cobrada e as demais são renumeradas.">Excluir parcela</ConfirmButton>
+                        </form>
+                      )}
                     </details>
                   )}
                   </div>
@@ -455,6 +472,52 @@ export default async function ContratoPage({ params, searchParams }: {
         </table>
       </div>
 
+      {pode(user, "baixar") && c.formaPagamento !== "PERMUTA" && (
+        <div className="mt-4 grid gap-3 lg:grid-cols-2">
+          <details className="card p-4">
+            <summary className="cursor-pointer font-semibold text-gold">+ Adicionar parcela</summary>
+            <form action={adicionarParcela.bind(null, id)} className="mt-3 grid gap-3 sm:grid-cols-2">
+              <div>
+                <label className="label" htmlFor="novaValor">Valor</label>
+                <MaskedInput className="input" id="novaValor" name="valor" mask="dinheiro" placeholder="1.000,00" required />
+              </div>
+              <div>
+                <label className="label" htmlFor="novaVenc">Vencimento</label>
+                <input className="input" id="novaVenc" name="vencimento" type="date" required />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="label" htmlFor="novaObs">Motivo (opcional)</label>
+                <input className="input" id="novaObs" name="observacoes" placeholder="Ex.: parcela extra, serviço adicional" />
+              </div>
+              <div className="sm:col-span-2"><button className="btn btn-gold" type="submit">Adicionar parcela</button></div>
+            </form>
+          </details>
+          <details className="card p-4">
+            <summary className="cursor-pointer font-semibold text-gold">Dividir em mais (ou menos) vezes</summary>
+            {aDividir.length === 0 ? (
+              <p className="mt-3 text-sm text-ink-soft">Não há parcelas a vencer para dividir. Para dívidas já vencidas, use <strong>Negociar dívida</strong>.</p>
+            ) : (
+              <form action={reparcelarContrato.bind(null, id)} className="mt-3 grid gap-3 sm:grid-cols-2">
+                <p className="text-xs text-ink-soft sm:col-span-2">
+                  Faltam <strong className="text-gold-soft">{aDividir.length}</strong> parcela(s) a vencer, somando <strong className="text-gold-soft">{money(totalADividir)}</strong>.
+                  Elas serão trocadas por parcelas mensais iguais. Parcelas já pagas ou vencidas não mudam.
+                </p>
+                <div>
+                  <label className="label" htmlFor="vezes">Dividir em quantas vezes</label>
+                  <input className="input" id="vezes" name="vezes" type="number" min={1} max={60} defaultValue={aDividir.length} required />
+                </div>
+                <div>
+                  <label className="label" htmlFor="primeiro">1º vencimento novo</label>
+                  <input className="input" id="primeiro" name="primeiro" type="date" defaultValue={isoDate(aDividir[0].vencimento)} required />
+                </div>
+                <div className="sm:col-span-2">
+                  <ConfirmButton className="btn btn-gold" mensagem="Refazer o parcelamento? As parcelas a vencer serão substituídas pelas novas.">Refazer parcelamento</ConfirmButton>
+                </div>
+              </form>
+            )}
+          </details>
+        </div>
+      )}
 
       {anexos}
     </main>

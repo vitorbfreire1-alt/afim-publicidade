@@ -6,8 +6,10 @@ import type { FormaPagamento } from "@prisma/client";
 import { msg } from "@/components/Flash";
 import { registrar } from "@/lib/audit";
 import { requireUser } from "@/lib/auth";
-import { data } from "@/lib/form";
-import { parseMoney } from "@/lib/format";
+import { renumerarParcelas } from "@/lib/contrato";
+import { addMeses } from "@/lib/financeiro";
+import { data, inteiro, texto } from "@/lib/form";
+import { hoje, parseMoney } from "@/lib/format";
 import { FORMAS } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
 
@@ -34,4 +36,81 @@ export async function desfazerRecebimento(id: string, volta: string) {
   await registrar(user, "desfez recebimento", "Parcela", id, "");
   revalidatePath("/", "layout");
   redirect(msg(volta, "ok", "Recebimento desfeito."));
+}
+
+/** Acrescenta uma parcela avulsa ao contrato. */
+export async function adicionarParcela(contratoId: string, fd: FormData) {
+  const user = await requireUser("baixar");
+  const volta = (tipo: "erro" | "ok", t: string) => redirect(msg(`/contratos/${contratoId}`, tipo, t));
+  const valor = parseMoney(fd.get("valor"));
+  const vencimento = data(fd, "vencimento");
+  if (!(valor > 0) || !vencimento) volta("erro", "Informe um valor e uma data de vencimento válidos.");
+  if (!(await prisma.contrato.findUnique({ where: { id: contratoId } }))) volta("erro", "Contrato não encontrado.");
+
+  await prisma.$transaction(async (tx) => {
+    await tx.parcela.create({ data: { contratoId, numero: 2_000_000, vencimento: vencimento!, valor, observacoes: texto(fd, "observacoes") } });
+    await renumerarParcelas(tx, contratoId);
+  });
+  await registrar(user, "adicionou parcela", "Contrato", contratoId, `${valor} em ${vencimento!.toISOString().slice(0, 10)}`);
+  revalidatePath("/", "layout");
+  volta("ok", "Parcela adicionada.");
+}
+
+/** Exclui uma parcela em aberto (as já recebidas, renegociadas ou de acordo não podem ser excluídas aqui). */
+export async function excluirParcela(id: string, volta: string) {
+  const user = await requireUser("baixar");
+  const p = await prisma.parcela.findUnique({ where: { id } });
+  if (!p) redirect(msg(volta, "erro", "Parcela não encontrada."));
+  if (p!.pagoEm) redirect(msg(volta, "erro", "Parcela já recebida: desfaça o recebimento antes de excluir."));
+  if (p!.renegociadaEm || p!.acordoId) redirect(msg(volta, "erro", "Parcela ligada a um acordo não pode ser excluída aqui."));
+
+  await prisma.$transaction(async (tx) => {
+    await tx.parcela.delete({ where: { id } });
+    await renumerarParcelas(tx, p!.contratoId);
+  });
+  await registrar(user, "excluiu parcela", "Parcela", id, `${Number(p!.valor)} com vencimento ${p!.vencimento.toISOString().slice(0, 10)}`);
+  revalidatePath("/", "layout");
+  redirect(msg(volta, "ok", "Parcela excluída."));
+}
+
+/**
+ * Divide em mais (ou menos) vezes o que ainda falta pagar: as parcelas em aberto que ainda não venceram
+ * viram N parcelas mensais de valores iguais, a partir da data escolhida. Parcelas pagas e vencidas não mudam.
+ */
+export async function reparcelarContrato(contratoId: string, fd: FormData) {
+  const user = await requireUser("baixar");
+  const volta = (tipo: "erro" | "ok", t: string) => redirect(msg(`/contratos/${contratoId}`, tipo, t));
+  const n = inteiro(fd, "vezes");
+  const primeiro = data(fd, "primeiro");
+  if (!Number.isInteger(n) || n < 1 || n > 60) volta("erro", "Informe de 1 a 60 parcelas.");
+  if (!primeiro) volta("erro", "Informe o vencimento da primeira nova parcela.");
+
+  const h = hoje();
+  const abertas = (await prisma.parcela.findMany({ where: { contratoId } })).filter(
+    (p) => !p.pagoEm && !p.renegociadaEm && !p.acordoId && p.vencimento >= h,
+  );
+  if (!abertas.length) volta("erro", "Não há parcelas a vencer para dividir. Para dívidas já vencidas, use Negociar dívida.");
+
+  const totalCentavos = abertas.reduce((s, p) => s + Math.round(Number(p.valor) * 100), 0);
+  const base = Math.floor(totalCentavos / n);
+  const resto = totalCentavos - base * n;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.parcela.deleteMany({ where: { id: { in: abertas.map((p) => p.id) } } });
+    for (let i = 0; i < n; i++) {
+      await tx.parcela.create({
+        data: {
+          contratoId,
+          numero: 2_000_000 + i,
+          vencimento: addMeses(primeiro!, i, primeiro!.getUTCDate()),
+          valor: (base + (i === n - 1 ? resto : 0)) / 100,
+          observacoes: `Parcelamento refeito em ${n}x`,
+        },
+      });
+    }
+    await renumerarParcelas(tx, contratoId);
+  });
+  await registrar(user, "reparcelou", "Contrato", contratoId, `${abertas.length} parcela(s) a vencer (R$ ${(totalCentavos / 100).toFixed(2)}) em ${n}x`);
+  revalidatePath("/", "layout");
+  volta("ok", `${abertas.length} parcela(s) a vencer viraram ${n} parcela(s) de R$ ${(base / 100).toFixed(2).replace(".", ",")}.`);
 }

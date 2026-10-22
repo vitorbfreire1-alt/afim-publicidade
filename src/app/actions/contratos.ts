@@ -423,3 +423,28 @@ export async function alterarDatasPonto(contratoId: string, pontoId: string, fd:
   revalidatePath("/", "layout");
   redirect(msg(`/contratos/${contratoId}`, "ok", "Datas do ponto atualizadas. As parcelas não foram alteradas."));
 }
+
+/** Troca o ponto de um contrato por outro (para corrigir um ponto cadastrado errado). Valor, datas e parcelas continuam iguais. */
+export async function trocarPonto(contratoId: string, pontoId: string, fd: FormData) {
+  const user = await requireUser("editar", "valores");
+  const volta = (t: string) => redirect(msg(`/contratos/${contratoId}`, "erro", t));
+  const novoId = String(fd.get("novoPontoId") ?? "");
+  if (!novoId) volta("Escolha o ponto correto.");
+
+  const [cp, novo, ja] = await Promise.all([
+    prisma.contratoPonto.findUnique({ where: { contratoId_pontoId: { contratoId, pontoId } }, include: { ponto: true } }),
+    prisma.ponto.findUnique({ where: { id: novoId } }),
+    prisma.contratoPonto.findUnique({ where: { contratoId_pontoId: { contratoId, pontoId: novoId } } }),
+  ]);
+  if (!cp) volta("Ponto do contrato não encontrado.");
+  if (!novo?.ativo) volta("O ponto escolhido não existe ou está desativado.");
+  if (ja) volta("Esse ponto já está neste contrato.");
+
+  const lotado = await verificarCotas([{ pontoId: novoId, inicio: cp!.inicio, fim: cp!.fim }], contratoId);
+  if (lotado) volta(lotado);
+
+  await prisma.contratoPonto.update({ where: { contratoId_pontoId: { contratoId, pontoId } }, data: { pontoId: novoId } });
+  await registrar(user, "trocou ponto", "Contrato", contratoId, `${cp!.ponto.nome} → ${novo!.nome}`);
+  revalidatePath("/", "layout");
+  redirect(msg(`/contratos/${contratoId}`, "ok", `Ponto trocado: ${cp!.ponto.nome} → ${novo!.nome}.`));
+}
