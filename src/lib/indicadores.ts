@@ -28,7 +28,7 @@ export async function calcularIndicadores(): Promise<Indicadores> {
   const [cps, pontos, propostas, vencidas12m, emAberto12m] = await Promise.all([
     prisma.contratoPonto.findMany({
       where: { contrato: { status: { not: "CANCELADO" } }, fim: { gte: inicioHistorico } },
-      select: { pontoId: true, valor: true, inicio: true, fim: true, ocupaTudo: true, contrato: { select: { id: true, status: true, formaPagamento: true, clienteId: true, vendedor: { select: { nome: true } } } }, ponto: { select: { tipo: true, cotas: true } } },
+      select: { pontoId: true, valor: true, inicio: true, fim: true, ocupaTudo: true, cotasUsadas: true, contrato: { select: { id: true, status: true, formaPagamento: true, clienteId: true, vendedor: { select: { nome: true } } } }, ponto: { select: { tipo: true, cotas: true } } },
     }),
     prisma.ponto.findMany({ where: { ativo: true }, select: { id: true, nome: true, tipo: true, cotas: true, larguraM: true, alturaM: true } }),
     prisma.proposta.findMany({ select: { status: true, pontos: { select: { valor: true } }, atualizadoEm: true } }),

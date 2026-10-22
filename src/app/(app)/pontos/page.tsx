@@ -70,9 +70,9 @@ export default async function Pontos({ searchParams }: { searchParams: Promise<{
                       <span className="text-good">Sem clientes</span>
                     ) : (
                       <ul className="space-y-0.5">
-                        {p.contratos.map(({ contrato: c, ocupaTudo }) => (
+                        {p.contratos.map(({ contrato: c, ocupaTudo, cotasUsadas }) => (
                           <li key={c.id}>
-                            <Link className="text-warn hover:underline" href={`/contratos/${c.id}`}>{c.cliente.nome}</Link>{ocupaTudo && <span className="ml-1 text-xs text-ink-faint">· ponto inteiro</span>}
+                            <Link className="text-warn hover:underline" href={`/contratos/${c.id}`}>{c.cliente.nome}</Link>{(ocupaTudo || cotasUsadas > 1) && <span className="ml-1 text-xs text-ink-faint">· {ocupaTudo ? "ponto inteiro" : `${cotasUsadas} cotas`}</span>}
                           </li>
                         ))}
                       </ul>

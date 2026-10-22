@@ -24,7 +24,7 @@ export default async function NovoContrato({ searchParams }: { searchParams: Pro
     prisma.ponto.findMany({
       where: { ativo: true },
       orderBy: { nome: "asc" },
-      include: { contratos: { where: { contrato: { status: "ATIVO" } }, select: { inicio: true, fim: true, ocupaTudo: true } } },
+      include: { contratos: { where: { contrato: { status: "ATIVO" } }, select: { inicio: true, fim: true, ocupaTudo: true, cotasUsadas: true } } },
     }),
     prisma.usuario.findMany({ where: { ativo: true }, orderBy: { nome: "asc" } }),
   ]);
@@ -53,7 +53,7 @@ export default async function NovoContrato({ searchParams }: { searchParams: Pro
               .filter((p) => p.tipo === t)
               .map((p) => {
                 const agora = ocupadasEm(p.contratos, p.cotas, h);
-                return { id: p.id, nome: p.nome, ocupacao: p.cotas ? `${agora}/${p.cotas} cotas hoje` : agora > 0 ? `${agora} cliente(s) hoje` : null, lotado: Boolean(p.cotas && agora >= p.cotas), temCotas: Boolean(p.cotas) };
+                return { id: p.id, nome: p.nome, ocupacao: p.cotas ? `${agora}/${p.cotas} cotas hoje` : agora > 0 ? `${agora} cliente(s) hoje` : null, lotado: Boolean(p.cotas && agora >= p.cotas), cotas: p.cotas };
               }),
           })).filter((g) => g.pontos.length > 0)}
         />

@@ -25,7 +25,7 @@ export default async function Disponibilidade({ searchParams }: { searchParams: 
   const pontos = await prisma.ponto.findMany({
     where: { ativo: true, tipo },
     orderBy: { nome: "asc" },
-    include: { contratos: { where: { contrato: { status: "ATIVO" } }, select: { inicio: true, fim: true, ocupaTudo: true } } },
+    include: { contratos: { where: { contrato: { status: "ATIVO" } }, select: { inicio: true, fim: true, ocupaTudo: true, cotasUsadas: true } } },
   });
 
   return (

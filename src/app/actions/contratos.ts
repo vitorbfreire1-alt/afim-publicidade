@@ -42,6 +42,7 @@ export async function criarContrato(fd: FormData) {
     inicio: data(fd, `inicio_${pontoId}`),
     prazoMeses: inteiro(fd, `prazo_${pontoId}`),
     ocupaTudo: fd.get(`inteiro_${pontoId}`) === "on",
+    cotasUsadas: Math.max(1, inteiro(fd, `cotas_${pontoId}`) || 1),
   }));
   for (const it of itens) {
     if (!(it.valor > 0)) volta("Informe o valor mensal de cada ponto escolhido.");
@@ -57,6 +58,10 @@ export async function criarContrato(fd: FormData) {
   ]);
   if (!cliente?.ativo) volta("Cliente inválido ou desativado.");
   if (pontos.length !== pontoIds.length) volta("Algum ponto escolhido não existe ou está desativado.");
+  for (const it of itens) {
+    const cotas = pontos.find((p) => p.id === it.pontoId)?.cotas;
+    if (cotas && it.cotasUsadas > cotas) volta("O contrato não pode ocupar mais cotas do que o ponto tem.");
+  }
 
   const comFim = itens.map((it) => ({
     pontoId: it.pontoId,
@@ -65,6 +70,7 @@ export async function criarContrato(fd: FormData) {
     prazoMeses: it.prazoMeses,
     fim: calcularFim(it.inicio!, it.prazoMeses),
     ocupaTudo: it.ocupaTudo,
+    cotasUsadas: it.cotasUsadas,
   }));
   const time = (d: Date) => d.getTime();
 
@@ -115,6 +121,7 @@ export async function adicionarPonto(contratoId: string, fd: FormData) {
   const inicio = data(fd, "inicio");
   const prazoMeses = inteiro(fd, "prazoMeses");
   const ocupaTudo = fd.get("ocupaTudo") === "on";
+  const cotasUsadas = Math.max(1, inteiro(fd, "cotasUsadas") || 1);
   if (!pontoId) volta("Escolha o ponto.");
   if (!(valor > 0)) volta("Informe o valor mensal do ponto.");
   if (!inicio) volta("Informe a data de início.");
@@ -129,14 +136,14 @@ export async function adicionarPonto(contratoId: string, fd: FormData) {
   if (contrato!.pontos.some((p) => p.pontoId === pontoId)) volta("Esse ponto já está no contrato. Use Renovar para estender o prazo.");
 
   const novas = gerarParcelas(inicio!, prazoMeses, contrato!.diaVencimento, valor);
-  const lotado = await verificarCotas([{ pontoId, inicio: inicio!, fim: calcularFim(inicio!, prazoMeses), ocupaTudo }], contratoId);
+  const lotado = await verificarCotas([{ pontoId, inicio: inicio!, fim: calcularFim(inicio!, prazoMeses), ocupaTudo, cotasUsadas }], contratoId);
   if (lotado) volta(lotado);
   const choque = choqueComRecebida(novas, contrato!.parcelas);
   if (choque) volta(`O ponto começaria cobrando em ${dateBR(choque.vencimento)}, mês que já foi recebido. Escolha um início posterior.`);
 
   await prisma.$transaction(async (tx) => {
     await tx.contratoPonto.create({
-      data: { contratoId, pontoId, valor, inicio: inicio!, prazoMeses, fim: calcularFim(inicio!, prazoMeses), ocupaTudo },
+      data: { contratoId, pontoId, valor, inicio: inicio!, prazoMeses, fim: calcularFim(inicio!, prazoMeses), ocupaTudo, cotasUsadas },
     });
     await somarParcelas(tx, contratoId, novas);
     await recalcularPeriodo(tx, contratoId);
@@ -169,7 +176,7 @@ export async function renovarPonto(contratoId: string, pontoId: string, fd: Form
   // Só as cobranças dos meses acrescentados entram no calendário.
   const acrescimo = gerarParcelas(cp!.inicio, prazoNovo, cp!.contrato.diaVencimento, valor).slice(cp!.prazoMeses);
   const janela = janelaDeRenovacao(cp!.fim, calcularFim(cp!.inicio, prazoNovo));
-  const lotado = await verificarCotas([{ pontoId, ...janela, ocupaTudo: cp!.ocupaTudo }], contratoId);
+  const lotado = await verificarCotas([{ pontoId, ...janela, ocupaTudo: cp!.ocupaTudo, cotasUsadas: cp!.cotasUsadas }], contratoId);
   if (lotado) volta(lotado);
   const choque = choqueComRecebida(acrescimo, cp!.contrato.parcelas);
   if (choque) volta(`A renovação cobraria em ${dateBR(choque.vencimento)}, mês que já foi recebido.`);
@@ -414,7 +421,7 @@ export async function alterarDatasPonto(contratoId: string, pontoId: string, fd:
   if (!cp || cp.contrato.status !== "ATIVO") volta("Só é possível alterar contratos ativos.");
   if (inicio!.getTime() === cp!.inicio.getTime() && fim!.getTime() === cp!.fim.getTime()) volta("As datas informadas são iguais às atuais.");
 
-  const lotado = await verificarCotas([{ pontoId, inicio: inicio!, fim: fim!, ocupaTudo: cp!.ocupaTudo }], contratoId);
+  const lotado = await verificarCotas([{ pontoId, inicio: inicio!, fim: fim!, ocupaTudo: cp!.ocupaTudo, cotasUsadas: cp!.cotasUsadas }], contratoId);
   if (lotado) volta(lotado);
 
   const prazoMeses = Math.max(1, Math.round(((fim!.getTime() - inicio!.getTime()) / 86_400_000 + 1) / 30.4));
@@ -443,7 +450,7 @@ export async function trocarPonto(contratoId: string, pontoId: string, fd: FormD
   if (!novo?.ativo) volta("O ponto escolhido não existe ou está desativado.");
   if (ja) volta("Esse ponto já está neste contrato.");
 
-  const lotado = await verificarCotas([{ pontoId: novoId, inicio: cp!.inicio, fim: cp!.fim, ocupaTudo: cp!.ocupaTudo }], contratoId);
+  const lotado = await verificarCotas([{ pontoId: novoId, inicio: cp!.inicio, fim: cp!.fim, ocupaTudo: cp!.ocupaTudo, cotasUsadas: cp!.cotasUsadas }], contratoId);
   if (lotado) volta(lotado);
 
   await prisma.contratoPonto.update({ where: { contratoId_pontoId: { contratoId, pontoId } }, data: { pontoId: novoId } });
@@ -452,26 +459,30 @@ export async function trocarPonto(contratoId: string, pontoId: string, fd: FormD
   redirect(msg(`/contratos/${contratoId}`, "ok", `Ponto trocado: ${cp!.ponto.nome} → ${novo!.nome}.`));
 }
 
-/** Marca (ou desmarca) que o contrato reserva o ponto inteiro, ocupando todas as cotas dele (ex.: outdoor anual). */
+/** Define quantas cotas do ponto o contrato ocupa: o ponto inteiro, ou um número de cotas (ex.: triedro de 6 cotas, 2 por cliente). */
 export async function alterarReservaPonto(contratoId: string, pontoId: string, fd: FormData) {
   const user = await requireUser("editar", "valores");
   const volta = (tipo: "erro" | "ok", t: string) => redirect(msg(`/contratos/${contratoId}`, tipo, t));
   const ocupaTudo = fd.get("ocupaTudo") === "on";
+  const cotasUsadas = Math.max(1, inteiro(fd, "cotasUsadas") || 1);
 
   const cp = await prisma.contratoPonto.findUnique({
     where: { contratoId_pontoId: { contratoId, pontoId } },
     include: { ponto: true, contrato: true },
   });
   if (!cp) volta("erro", "Ponto do contrato não encontrado.");
-  if (!cp!.ponto.cotas) volta("erro", "Este ponto não tem limite de cotas; não há o que reservar.");
-  if (ocupaTudo === cp!.ocupaTudo) volta("erro", "Nada a alterar.");
+  const cotas = cp!.ponto.cotas;
+  if (!cotas) volta("erro", "Este ponto não tem limite de cotas; não há o que reservar.");
+  if (cotasUsadas > cotas!) volta("erro", `O ponto tem ${cotas} cota(s); o contrato não pode ocupar mais que isso.`);
+  if (ocupaTudo === cp!.ocupaTudo && cotasUsadas === cp!.cotasUsadas) volta("erro", "Nada a alterar.");
 
-  if (ocupaTudo && cp!.contrato.status === "ATIVO") {
-    const lotado = await verificarCotas([{ pontoId, inicio: cp!.inicio, fim: cp!.fim, ocupaTudo: true }], contratoId);
+  if (cp!.contrato.status === "ATIVO") {
+    const lotado = await verificarCotas([{ pontoId, inicio: cp!.inicio, fim: cp!.fim, ocupaTudo, cotasUsadas }], contratoId);
     if (lotado) volta("erro", lotado);
   }
-  await prisma.contratoPonto.update({ where: { contratoId_pontoId: { contratoId, pontoId } }, data: { ocupaTudo } });
-  await registrar(user, ocupaTudo ? "reservou ponto inteiro" : "liberou ponto inteiro", "Contrato", contratoId, cp!.ponto.nome);
+  await prisma.contratoPonto.update({ where: { contratoId_pontoId: { contratoId, pontoId } }, data: { ocupaTudo, cotasUsadas } });
+  const resumo = ocupaTudo ? "ponto inteiro" : `${cotasUsadas} cota(s)`;
+  await registrar(user, "alterou reserva do ponto", "Contrato", contratoId, `${cp!.ponto.nome}: ${resumo}`);
   revalidatePath("/", "layout");
-  volta("ok", ocupaTudo ? `${cp!.ponto.nome} agora fica totalmente reservado por este contrato.` : `${cp!.ponto.nome} volta a ocupar só uma cota.`);
+  volta("ok", `${cp!.ponto.nome}: o contrato agora ocupa ${resumo}.`);
 }

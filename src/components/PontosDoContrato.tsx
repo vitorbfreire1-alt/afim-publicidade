@@ -5,7 +5,7 @@ import MaskedInput from "./MaskedInput";
 
 export interface GrupoPontos {
   titulo: string;
-  pontos: { id: string; nome: string; ocupacao: string | null; lotado: boolean; temCotas: boolean }[];
+  pontos: { id: string; nome: string; ocupacao: string | null; lotado: boolean; cotas: number | null }[];
 }
 
 /** Escolha dos pontos do contrato; cada ponto marcado pede o seu valor mensal, início e prazo. */
@@ -67,12 +67,18 @@ export default function PontosDoContrato({ grupos, hojeISO, inicial = {}, prazoP
                       <label className="label" htmlFor={`prazo_${p.id}`}>Prazo (meses)</label>
                       <input className="input" id={`prazo_${p.id}`} name={`prazo_${p.id}`} type="number" min={1} max={120} defaultValue={prazoPadrao} required />
                     </div>
-                    {p.temCotas && (
-                      <label className="flex items-center gap-2 text-sm sm:col-span-3">
-                        <input type="checkbox" name={`inteiro_${p.id}`} className="size-4 accent-[#d4a62a]" />
-                        Reservar o ponto inteiro (ocupa todas as cotas)
-                        <span className="text-xs text-ink-faint">— use em contratos anuais, em que o cliente fica com a placa toda</span>
-                      </label>
+                    {p.cotas && (
+                      <div className="grid gap-3 sm:col-span-3 sm:grid-cols-3">
+                        <div>
+                          <label className="label" htmlFor={`cotas_${p.id}`}>Cotas que ocupa (de {p.cotas})</label>
+                          <input className="input" id={`cotas_${p.id}`} name={`cotas_${p.id}`} type="number" min={1} max={p.cotas} defaultValue={1} />
+                        </div>
+                        <label className="flex items-center gap-2 text-sm sm:col-span-2 sm:pt-6">
+                          <input type="checkbox" name={`inteiro_${p.id}`} className="size-4 accent-[#d4a62a]" />
+                          Reservar o ponto inteiro (todas as cotas)
+                        </label>
+                        <p className="text-xs text-ink-faint sm:col-span-3">Ex.: triedro de 6 cotas com 3 clientes, 2 cotas cada. No outdoor anual, marque o ponto inteiro.</p>
+                      </div>
                     )}
                   </div>
                 )}

@@ -265,18 +265,24 @@ export default async function ContratoPage({ params, searchParams }: {
                     {c.pontos.map((cp) => (
                       <details key={cp.pontoId} className="card p-3">
                         <summary className="cursor-pointer text-sm font-semibold">
-                          {cp.ponto.nome} <span className="font-normal text-ink-soft">· {dateBR(cp.inicio)} a {dateBR(cp.fim)} · {money(cp.valor)}{cp.ocupaTudo && " · ponto inteiro"}</span>
+                          {cp.ponto.nome} <span className="font-normal text-ink-soft">· {dateBR(cp.inicio)} a {dateBR(cp.fim)} · {money(cp.valor)}{cp.ocupaTudo ? " · ponto inteiro" : cp.cotasUsadas > 1 ? ` · ${cp.cotasUsadas} cotas` : ""}</span>
                         </summary>
                         <div className="mt-3 grid gap-4 md:grid-cols-2">
                           {cp.ponto.cotas && (
                             <form action={alterarReservaPonto.bind(null, id, cp.pontoId)} className="grid gap-2 md:col-span-2">
-                              <p className="text-xs font-semibold text-gold-soft">Reserva do ponto</p>
-                              <label className="flex items-center gap-2 text-sm">
-                                <input type="checkbox" name="ocupaTudo" defaultChecked={cp.ocupaTudo} className="size-4 accent-[#d4a62a]" />
-                                Reservar o ponto inteiro (ocupa todas as {cp.ponto.cotas} cotas)
-                              </label>
-                              <p className="text-xs text-ink-faint">Use em contratos anuais, em que o cliente fica com a placa toda. Desmarcado, o contrato ocupa só uma cota.</p>
-                              <button className="btn btn-sm w-fit" type="submit">Salvar reserva</button>
+                              <p className="text-xs font-semibold text-gold-soft">Cotas que este contrato ocupa (o ponto tem {cp.ponto.cotas})</p>
+                              <div className="grid gap-2 sm:grid-cols-2">
+                                <div>
+                                  <label className="text-xs text-ink-faint" htmlFor={`cotas-${cp.pontoId}`}>Número de cotas</label>
+                                  <input className="input" id={`cotas-${cp.pontoId}`} name="cotasUsadas" type="number" min={1} max={cp.ponto.cotas} defaultValue={cp.cotasUsadas} />
+                                </div>
+                                <label className="flex items-center gap-2 text-sm sm:pt-5">
+                                  <input type="checkbox" name="ocupaTudo" defaultChecked={cp.ocupaTudo} className="size-4 accent-[#d4a62a]" />
+                                  Reservar o ponto inteiro (todas as cotas)
+                                </label>
+                              </div>
+                              <p className="text-xs text-ink-faint">Ex.: triedro de 6 cotas com 3 clientes, 2 cotas cada. No outdoor anual, marque o ponto inteiro (vale mais que o número de cotas).</p>
+                              <button className="btn btn-sm w-fit" type="submit">Salvar cotas</button>
                             </form>
                           )}
                           <form action={renovarPonto.bind(null, id, cp.pontoId)} className="grid gap-2">
@@ -346,9 +352,13 @@ export default async function ContratoPage({ params, searchParams }: {
                                         <label className="label" htmlFor="prazoMeses">Prazo (meses)</label>
                                         <input className="input" id="prazoMeses" name="prazoMeses" type="number" min={1} max={120} defaultValue={12} required />
                                       </div>
-                                      <label className="flex items-center gap-2 text-sm sm:col-span-2">
+                                      <div>
+                                        <label className="label" htmlFor="cotasUsadas">Cotas que ocupa</label>
+                                        <input className="input" id="cotasUsadas" name="cotasUsadas" type="number" min={1} defaultValue={1} />
+                                      </div>
+                                      <label className="flex items-center gap-2 text-sm sm:pt-6">
                                         <input type="checkbox" name="ocupaTudo" className="size-4 accent-[#d4a62a]" />
-                                        Reservar o ponto inteiro (ocupa todas as cotas)
+                                        Reservar o ponto inteiro
                                       </label>
                                       <div className="flex items-end">
                                         <button className="btn btn-gold w-full sm:w-auto" type="submit">Adicionar ponto</button>

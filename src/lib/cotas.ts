@@ -6,10 +6,13 @@ interface Periodo {
   fim: Date;
   /** Reserva o ponto inteiro: ocupa todas as cotas, não só uma. */
   ocupaTudo?: boolean;
+  /** Quantas cotas ocupa quando não reserva o ponto inteiro (1 por padrão). */
+  cotasUsadas?: number;
 }
 
 /** Quantas cotas um contrato ocupa no ponto: uma, ou todas se reserva o ponto inteiro. */
-export const pesoNoPonto = (c: { ocupaTudo?: boolean }, cotas: number | null | undefined) => (c.ocupaTudo && cotas ? cotas : 1);
+export const pesoNoPonto = (c: { ocupaTudo?: boolean; cotasUsadas?: number }, cotas: number | null | undefined) =>
+  c.ocupaTudo && cotas ? cotas : Math.max(1, c.cotasUsadas ?? 1);
 
 /** Cotas ocupadas numa data (soma dos pesos dos períodos que a cobrem). */
 export function ocupadasEm(lista: Periodo[], cotas: number | null | undefined, data: Date): number {
@@ -33,19 +36,19 @@ export const janelaDeRenovacao = (fimAtual: Date, novoFim: Date): Periodo => ({ 
  * Confere se cada ponto com limite de cotas comporta o contrato no período pedido
  * (uma cota, ou todas se reservar o ponto inteiro). Retorna a mensagem do primeiro ponto lotado, ou null se tudo cabe.
  */
-export async function verificarCotas(itens: { pontoId: string; inicio: Date; fim: Date; ocupaTudo?: boolean }[], ignorarContratoId?: string): Promise<string | null> {
+export async function verificarCotas(itens: { pontoId: string; inicio: Date; fim: Date; ocupaTudo?: boolean; cotasUsadas?: number }[], ignorarContratoId?: string): Promise<string | null> {
   const pontos = await prisma.ponto.findMany({ where: { id: { in: itens.map((i) => i.pontoId) }, cotas: { not: null } } });
   for (const ponto of pontos) {
     const janela = itens.find((i) => i.pontoId === ponto.id)!;
     const existentes = await prisma.contratoPonto.findMany({
       where: { pontoId: ponto.id, contrato: { status: "ATIVO", ...(ignorarContratoId ? { id: { not: ignorarContratoId } } : {}) } },
-      select: { inicio: true, fim: true, ocupaTudo: true },
+      select: { inicio: true, fim: true, ocupaTudo: true, cotasUsadas: true },
     });
     const pico = picoDeOcupacao(existentes, janela, ponto.cotas);
     const novoPeso = pesoNoPonto(janela, ponto.cotas);
     if (pico + novoPeso > ponto.cotas!) {
-      return janela.ocupaTudo
-        ? `${ponto.nome} não está livre entre ${dateBR(janela.inicio)} e ${dateBR(janela.fim)} para reservar o ponto inteiro (${pico} de ${ponto.cotas} cotas já ocupadas).`
+      return novoPeso > 1
+        ? `${ponto.nome} não tem ${novoPeso} cota(s) livres entre ${dateBR(janela.inicio)} e ${dateBR(janela.fim)} (${pico} de ${ponto.cotas} já ocupadas).`
         : `${ponto.nome} está lotado entre ${dateBR(janela.inicio)} e ${dateBR(janela.fim)} (${pico} de ${ponto.cotas} cotas ocupadas).`;
     }
   }

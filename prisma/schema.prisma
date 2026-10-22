@@ -205,6 +205,8 @@ model ContratoPonto {
   renovacao  StatusRenovacao @default(A_CONTATAR)
   // Reserva o ponto inteiro (ocupa todas as cotas), ex.: outdoor contratado por um ano.
   ocupaTudo  Boolean @default(false)
+  // Quantas cotas do ponto o contrato ocupa (1 por padrão; ignorado se ocupaTudo).
+  cotasUsadas Int @default(1)
 
   @@id([contratoId, pontoId])
   @@index([pontoId])
