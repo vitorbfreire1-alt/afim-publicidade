@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { FileText, Link2, Receipt } from "lucide-react";
 import Anexos from "@/components/Anexos";
 import BotaoWhatsapp from "@/components/BotaoWhatsapp";
+import AbasEdicao from "@/components/AbasEdicao";
 import ConfirmButton from "@/components/ConfirmButton";
 import Flash from "@/components/Flash";
 import MaskedInput from "@/components/MaskedInput";
@@ -186,7 +187,7 @@ export default async function ContratoPage({ params, searchParams }: {
       <div className="card table-wrap mb-6">
         <table className="table">
           <thead>
-            <tr><th>Ponto</th><th>Tipo</th><th>Valor mensal</th><th>Início</th><th>Prazo</th><th>Fim</th>{edita && c.status === "ATIVO" && <th></th>}</tr>
+            <tr><th>Ponto</th><th>Tipo</th><th>Valor mensal</th><th>Início</th><th>Prazo</th><th>Fim</th></tr>
           </thead>
           <tbody>
             {c.pontos.map((cp) => (
@@ -197,154 +198,291 @@ export default async function ContratoPage({ params, searchParams }: {
                 <td>{dateBR(cp.inicio)}</td>
                 <td>{cp.prazoMeses} meses</td>
                 <td>{dateBR(cp.fim)}</td>
-                {edita && c.status === "ATIVO" && (
-                  <td>
-                    <details>
-                      <summary className="btn btn-sm cursor-pointer list-none">Ações</summary>
-                      <div className="card mt-2 grid min-w-72 gap-4 p-3">
-                        <form action={renovarPonto.bind(null, id, cp.pontoId)} className="grid gap-2">
-                          <p className="text-xs font-semibold text-gold-soft">Renovar</p>
-                          <input className="input" name="meses" type="number" min={1} max={120} defaultValue={12} required aria-label="Renovar por (meses)" />
-                          <MaskedInput className="input" name="valor" mask="dinheiro" placeholder="Novo valor (opcional)" aria-label="Novo valor mensal (opcional)" />
-                          <button className="btn btn-sm btn-gold" type="submit">Renovar por N meses</button>
-                        </form>
-                        <form action={trocarPonto.bind(null, id, cp.pontoId)} className="grid gap-2 border-t border-line pt-3">
-                          <p className="text-xs font-semibold text-gold-soft">Trocar por outro ponto (corrigir cadastro)</p>
-                          <select className="input" name="novoPontoId" required defaultValue="" aria-label="Ponto correto">
-                            <option value="" disabled>Escolha o ponto correto…</option>
-                            {disponiveis.map((p) => <option key={p.id} value={p.id}>{TIPO_SINGULAR[p.tipo]} · {p.nome}</option>)}
-                          </select>
-                          <ConfirmButton className="btn btn-sm" mensagem="Trocar o ponto deste contrato? Valor, datas e parcelas continuam iguais.">Trocar ponto</ConfirmButton>
-                          <p className="text-xs text-ink-faint">Só troca o local; valor, datas e parcelas não mudam.</p>
-                        </form>
-                        <form action={alterarDatasPonto.bind(null, id, cp.pontoId)} className="grid gap-2 border-t border-line pt-3">
-                          <p className="text-xs font-semibold text-gold-soft">Alterar datas de veiculação</p>
-                          <label className="text-xs text-ink-faint" htmlFor={`ini-${cp.pontoId}`}>Início</label>
-                          <input className="input" id={`ini-${cp.pontoId}`} name="inicio" type="date" defaultValue={isoDate(cp.inicio)} required />
-                          <label className="text-xs text-ink-faint" htmlFor={`fim-${cp.pontoId}`}>Fim</label>
-                          <input className="input" id={`fim-${cp.pontoId}`} name="fim" type="date" defaultValue={isoDate(cp.fim)} required />
-                          <ConfirmButton className="btn btn-sm" mensagem="Alterar as datas de veiculação deste ponto? As parcelas não mudam.">Alterar datas</ConfirmButton>
-                          <p className="text-xs text-ink-faint">Só muda o período do ponto (ocupação, vagas e avisos de fim). As parcelas continuam como estão.</p>
-                        </form>
-                        <form action={alterarValorPonto.bind(null, id, cp.pontoId)} className="grid gap-2 border-t border-line pt-3">
-                          <p className="text-xs font-semibold text-gold-soft">Alterar valor mensal (parcelas futuras)</p>
-                          <MaskedInput className="input" name="valor" mask="dinheiro" defaultValue={Number(cp.valor).toFixed(2).replace(".", ",")} required aria-label="Novo valor mensal" />
-                          <ConfirmButton className="btn btn-sm" mensagem="Alterar o valor das parcelas futuras ainda não pagas deste ponto?">Alterar valor</ConfirmButton>
-                        </form>
-                        {c.pontos.length > 1 && (
-                          <form action={encerrarPonto.bind(null, id, cp.pontoId)} className="grid gap-2 border-t border-line pt-3">
-                            <p className="text-xs font-semibold text-danger">Encerrar este ponto (ou trocar por outro)</p>
-                            <input className="input" name="data" type="date" defaultValue={isoDate(hoje())} required aria-label="Encerrar em" />
-                            <ConfirmButton className="btn btn-sm btn-danger" mensagem="Encerrar este ponto na data escolhida? As parcelas posteriores deixam de cobrá-lo.">Encerrar ponto</ConfirmButton>
-                            <p className="text-xs text-ink-faint">Para trocar de ponto, encerre este e depois adicione o novo.</p>
-                          </form>
-                        )}
-                      </div>
-                    </details>
-                  </td>
-                )}
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-
       {edita && c.status === "ATIVO" && (
-        <details className="card mb-6 p-4">
-          <summary className="cursor-pointer font-semibold text-gold">+ Adicionar ponto a este contrato</summary>
-          {disponiveis.length === 0 ? (
-            <p className="mt-3 text-sm text-ink-soft">Todos os pontos ativos já estão neste contrato.</p>
-          ) : (
-            <form action={adicionarPonto.bind(null, id)} className="mt-3 grid gap-3 sm:grid-cols-2">
-              <div className="sm:col-span-2">
-                <label className="label" htmlFor="pontoId">Ponto</label>
-                <select className="input" id="pontoId" name="pontoId" required defaultValue="">
-                  <option value="" disabled>Escolha…</option>
-                  {disponiveis.map((p) => (
-                    <option key={p.id} value={p.id}>{TIPO_SINGULAR[p.tipo]} · {p.nome}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="label" htmlFor="valor">Valor mensal (R$)</label>
-                <MaskedInput className="input" id="valor" name="valor" mask="dinheiro" placeholder="1.500,00" required />
-              </div>
-              <div>
-                <label className="label" htmlFor="inicio">Início</label>
-                <input className="input" id="inicio" name="inicio" type="date" defaultValue={isoDate(hoje())} required />
-              </div>
-              <div>
-                <label className="label" htmlFor="prazoMeses">Prazo (meses)</label>
-                <input className="input" id="prazoMeses" name="prazoMeses" type="number" min={1} max={120} defaultValue={12} required />
-              </div>
-              <div className="flex items-end">
-                <button className="btn btn-gold w-full sm:w-auto" type="submit">Adicionar ponto</button>
-              </div>
-            </form>
-          )}
-        </details>
+        <p className="-mt-3 mb-4 text-xs text-ink-faint">Para trocar, mudar datas ou valor, renovar ou encerrar um ponto, use <a className="text-gold hover:underline" href="#editar">Editar contrato</a> → aba <strong>Pontos</strong>.</p>
       )}
 
       {edita && c.status === "ATIVO" && (
-        <details className="card mb-6 p-4">
-          <summary className="cursor-pointer font-semibold text-gold">Editar contrato</summary>
-          <form action={editarContrato.bind(null, id)} className="mt-3 grid gap-3 sm:grid-cols-2">
-            <div>
-              <label className="label" htmlFor="formaPagamento">Forma de pagamento</label>
-              <select className="input" id="formaPagamento" name="formaPagamento" defaultValue={c.formaPagamento}>
-                {FORMAS_CONTRATO.map((f) => <option key={f} value={f}>{FORMA_ROTULO[f]}</option>)}
-              </select>
-              <p className="mt-1 text-xs text-ink-faint">Não dá para trocar entre permuta e dinheiro depois de criado.</p>
-            </div>
-            {c.formaPagamento === "PERMUTA" && (
-              <div>
-                <label className="label" htmlFor="permutaDescricaoEd">O que é trocado</label>
-                <input className="input" id="permutaDescricaoEd" name="permutaDescricao" defaultValue={c.permutaDescricao ?? ""} />
-              </div>
-            )}
-            <div>
-              <label className="label" htmlFor="diaVencimentoEd">Dia do vencimento (1 a 28)</label>
-              <input className="input" id="diaVencimentoEd" name="diaVencimento" type="number" min={1} max={28} defaultValue={c.diaVencimento} required />
-              <p className="mt-1 text-xs text-ink-faint">Move as parcelas ainda não pagas para o novo dia.</p>
-            </div>
-            <div>
-              <label className="label" htmlFor="vendedorIdEd">Vendedor</label>
-              <select className="input" id="vendedorIdEd" name="vendedorId" defaultValue={c.vendedorId ?? ""}>
-                <option value="">Sem vendedor</option>
-                {vendedores.map((u) => <option key={u.id} value={u.id}>{u.nome}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="label" htmlFor="comissaoPctEd">Comissão (%)</label>
-              <input className="input" id="comissaoPctEd" name="comissaoPct" inputMode="decimal" defaultValue={c.comissaoPct != null ? String(Number(c.comissaoPct)) : ""} />
-            </div>
-            <div className="sm:col-span-2">
-              <label className="label" htmlFor="observacoesEd">Observações</label>
-              <textarea className="input" id="observacoesEd" name="observacoes" rows={2} defaultValue={c.observacoes ?? ""} />
-            </div>
-            <div className="sm:col-span-2"><button className="btn btn-gold" type="submit">Salvar alterações</button></div>
-          </form>
-          <form action={comecarControleEm.bind(null, id)} className="mt-5 grid gap-3 border-t border-white/10 pt-4 sm:grid-cols-2">
-            <div className="sm:col-span-2">
-              <p className="text-sm font-semibold text-gold-soft">Começar a controlar a partir de uma data</p>
-              <p className="mt-1 text-xs text-ink-soft">Use para contratos que já vinham de antes: as parcelas com vencimento anterior à data saem do sistema (pagas ou não). As datas de veiculação e os pontos continuam iguais.</p>
-            </div>
-            <div>
-              <label className="label" htmlFor="corte">Controlar a partir de</label>
-              <input className="input" id="corte" name="corte" type="date" defaultValue={isoDate(new Date(Date.UTC(hoje().getUTCFullYear(), hoje().getUTCMonth(), 1)))} required />
-            </div>
-            <div className="flex items-end">
-              <ConfirmButton className="btn btn-sm btn-danger" mensagem="Retirar do sistema as parcelas anteriores a essa data? Isso não pode ser desfeito.">Retirar parcelas anteriores</ConfirmButton>
-            </div>
-          </form>
+        <details id="editar" className="card mb-6 p-4">
+          <summary className="cursor-pointer font-semibold text-gold">✎ Editar contrato</summary>
+          <p className="mt-2 text-xs text-ink-soft">Tudo o que dá para corrigir neste contrato está aqui: dados gerais, pontos (trocar, datas, valor, renovar, encerrar), parcelas, reajuste e dívida.</p>
+          <AbasEdicao
+            abas={[
+              {
+                id: "dados",
+                titulo: "Dados do contrato",
+                conteudo: (
+                  <>
+                    <form action={editarContrato.bind(null, id)} className="mt-3 grid gap-3 sm:grid-cols-2">
+                                <div>
+                                  <label className="label" htmlFor="formaPagamento">Forma de pagamento</label>
+                                  <select className="input" id="formaPagamento" name="formaPagamento" defaultValue={c.formaPagamento}>
+                                    {FORMAS_CONTRATO.map((f) => <option key={f} value={f}>{FORMA_ROTULO[f]}</option>)}
+                                  </select>
+                                  <p className="mt-1 text-xs text-ink-faint">Não dá para trocar entre permuta e dinheiro depois de criado.</p>
+                                </div>
+                                {c.formaPagamento === "PERMUTA" && (
+                                  <div>
+                                    <label className="label" htmlFor="permutaDescricaoEd">O que é trocado</label>
+                                    <input className="input" id="permutaDescricaoEd" name="permutaDescricao" defaultValue={c.permutaDescricao ?? ""} />
+                                  </div>
+                                )}
+                                <div>
+                                  <label className="label" htmlFor="diaVencimentoEd">Dia do vencimento (1 a 28)</label>
+                                  <input className="input" id="diaVencimentoEd" name="diaVencimento" type="number" min={1} max={28} defaultValue={c.diaVencimento} required />
+                                  <p className="mt-1 text-xs text-ink-faint">Move as parcelas ainda não pagas para o novo dia.</p>
+                                </div>
+                                <div>
+                                  <label className="label" htmlFor="vendedorIdEd">Vendedor</label>
+                                  <select className="input" id="vendedorIdEd" name="vendedorId" defaultValue={c.vendedorId ?? ""}>
+                                    <option value="">Sem vendedor</option>
+                                    {vendedores.map((u) => <option key={u.id} value={u.id}>{u.nome}</option>)}
+                                  </select>
+                                </div>
+                                <div>
+                                  <label className="label" htmlFor="comissaoPctEd">Comissão (%)</label>
+                                  <input className="input" id="comissaoPctEd" name="comissaoPct" inputMode="decimal" defaultValue={c.comissaoPct != null ? String(Number(c.comissaoPct)) : ""} />
+                                </div>
+                                <div className="sm:col-span-2">
+                                  <label className="label" htmlFor="observacoesEd">Observações</label>
+                                  <textarea className="input" id="observacoesEd" name="observacoes" rows={2} defaultValue={c.observacoes ?? ""} />
+                                </div>
+                                <div className="sm:col-span-2"><button className="btn btn-gold" type="submit">Salvar alterações</button></div>
+                              </form>
+                  </>
+                ),
+              },
+              {
+                id: "pontos",
+                titulo: "Pontos",
+                conteudo: (
+                  <div className="space-y-3">
+                    {c.pontos.map((cp) => (
+                      <details key={cp.pontoId} className="card p-3">
+                        <summary className="cursor-pointer text-sm font-semibold">
+                          {cp.ponto.nome} <span className="font-normal text-ink-soft">· {dateBR(cp.inicio)} a {dateBR(cp.fim)} · {money(cp.valor)}</span>
+                        </summary>
+                        <div className="mt-3 grid gap-4 md:grid-cols-2">
+                          <form action={renovarPonto.bind(null, id, cp.pontoId)} className="grid gap-2">
+                                                    <p className="text-xs font-semibold text-gold-soft">Renovar</p>
+                                                    <input className="input" name="meses" type="number" min={1} max={120} defaultValue={12} required aria-label="Renovar por (meses)" />
+                                                    <MaskedInput className="input" name="valor" mask="dinheiro" placeholder="Novo valor (opcional)" aria-label="Novo valor mensal (opcional)" />
+                                                    <button className="btn btn-sm btn-gold" type="submit">Renovar por N meses</button>
+                                                  </form>
+                          <form action={trocarPonto.bind(null, id, cp.pontoId)} className="grid gap-2 border-t border-line pt-3">
+                                                    <p className="text-xs font-semibold text-gold-soft">Trocar por outro ponto (corrigir cadastro)</p>
+                                                    <select className="input" name="novoPontoId" required defaultValue="" aria-label="Ponto correto">
+                                                      <option value="" disabled>Escolha o ponto correto…</option>
+                                                      {disponiveis.map((p) => <option key={p.id} value={p.id}>{TIPO_SINGULAR[p.tipo]} · {p.nome}</option>)}
+                                                    </select>
+                                                    <ConfirmButton className="btn btn-sm" mensagem="Trocar o ponto deste contrato? Valor, datas e parcelas continuam iguais.">Trocar ponto</ConfirmButton>
+                                                    <p className="text-xs text-ink-faint">Só troca o local; valor, datas e parcelas não mudam.</p>
+                                                  </form>
+                          <form action={alterarDatasPonto.bind(null, id, cp.pontoId)} className="grid gap-2 border-t border-line pt-3">
+                                                    <p className="text-xs font-semibold text-gold-soft">Alterar datas de veiculação</p>
+                                                    <label className="text-xs text-ink-faint" htmlFor={`ini-${cp.pontoId}`}>Início</label>
+                                                    <input className="input" id={`ini-${cp.pontoId}`} name="inicio" type="date" defaultValue={isoDate(cp.inicio)} required />
+                                                    <label className="text-xs text-ink-faint" htmlFor={`fim-${cp.pontoId}`}>Fim</label>
+                                                    <input className="input" id={`fim-${cp.pontoId}`} name="fim" type="date" defaultValue={isoDate(cp.fim)} required />
+                                                    <ConfirmButton className="btn btn-sm" mensagem="Alterar as datas de veiculação deste ponto? As parcelas não mudam.">Alterar datas</ConfirmButton>
+                                                    <p className="text-xs text-ink-faint">Só muda o período do ponto (ocupação, vagas e avisos de fim). As parcelas continuam como estão.</p>
+                                                  </form>
+                          <form action={alterarValorPonto.bind(null, id, cp.pontoId)} className="grid gap-2 border-t border-line pt-3">
+                                                    <p className="text-xs font-semibold text-gold-soft">Alterar valor mensal (parcelas futuras)</p>
+                                                    <MaskedInput className="input" name="valor" mask="dinheiro" defaultValue={Number(cp.valor).toFixed(2).replace(".", ",")} required aria-label="Novo valor mensal" />
+                                                    <ConfirmButton className="btn btn-sm" mensagem="Alterar o valor das parcelas futuras ainda não pagas deste ponto?">Alterar valor</ConfirmButton>
+                                                  </form>
+                          {c.pontos.length > 1 && (
+                                                    <form action={encerrarPonto.bind(null, id, cp.pontoId)} className="grid gap-2 border-t border-line pt-3">
+                                                      <p className="text-xs font-semibold text-danger">Encerrar este ponto (ou trocar por outro)</p>
+                                                      <input className="input" name="data" type="date" defaultValue={isoDate(hoje())} required aria-label="Encerrar em" />
+                                                      <ConfirmButton className="btn btn-sm btn-danger" mensagem="Encerrar este ponto na data escolhida? As parcelas posteriores deixam de cobrá-lo.">Encerrar ponto</ConfirmButton>
+                                                      <p className="text-xs text-ink-faint">Para trocar de ponto, encerre este e depois adicione o novo.</p>
+                                                    </form>
+                                                  )}
+                        </div>
+                      </details>
+                    ))}
+                    <details className="card p-3">
+                      <summary className="cursor-pointer text-sm font-semibold text-gold">+ Adicionar ponto a este contrato</summary>
+                      {disponiveis.length === 0 ? (
+                        <p className="mt-3 text-sm text-ink-soft">Todos os pontos ativos já estão neste contrato.</p>
+                      ) : (
+                        <form action={adicionarPonto.bind(null, id)} className="mt-3 grid gap-3 sm:grid-cols-2">
+                                      <div className="sm:col-span-2">
+                                        <label className="label" htmlFor="pontoId">Ponto</label>
+                                        <select className="input" id="pontoId" name="pontoId" required defaultValue="">
+                                          <option value="" disabled>Escolha…</option>
+                                          {disponiveis.map((p) => (
+                                            <option key={p.id} value={p.id}>{TIPO_SINGULAR[p.tipo]} · {p.nome}</option>
+                                          ))}
+                                        </select>
+                                      </div>
+                                      <div>
+                                        <label className="label" htmlFor="valor">Valor mensal (R$)</label>
+                                        <MaskedInput className="input" id="valor" name="valor" mask="dinheiro" placeholder="1.500,00" required />
+                                      </div>
+                                      <div>
+                                        <label className="label" htmlFor="inicio">Início</label>
+                                        <input className="input" id="inicio" name="inicio" type="date" defaultValue={isoDate(hoje())} required />
+                                      </div>
+                                      <div>
+                                        <label className="label" htmlFor="prazoMeses">Prazo (meses)</label>
+                                        <input className="input" id="prazoMeses" name="prazoMeses" type="number" min={1} max={120} defaultValue={12} required />
+                                      </div>
+                                      <div className="flex items-end">
+                                        <button className="btn btn-gold w-full sm:w-auto" type="submit">Adicionar ponto</button>
+                                      </div>
+                                    </form>
+                      )}
+                    </details>
+                  </div>
+                ),
+              },
+              {
+                id: "parcelas",
+                titulo: "Parcelas",
+                conteudo: (
+                  <div className="space-y-5">
+                    {pode(user, "baixar") && c.formaPagamento !== "PERMUTA" ? (
+                      <>
+                        <div>
+                          <p className="mb-2 text-sm font-semibold text-gold-soft">Adicionar parcela</p>
+                          <form action={adicionarParcela.bind(null, id)} className="mt-3 grid gap-3 sm:grid-cols-2">
+                                        <div>
+                                          <label className="label" htmlFor="novaValor">Valor</label>
+                                          <MaskedInput className="input" id="novaValor" name="valor" mask="dinheiro" placeholder="1.000,00" required />
+                                        </div>
+                                        <div>
+                                          <label className="label" htmlFor="novaVenc">Vencimento</label>
+                                          <input className="input" id="novaVenc" name="vencimento" type="date" required />
+                                        </div>
+                                        <div className="sm:col-span-2">
+                                          <label className="label" htmlFor="novaObs">Motivo (opcional)</label>
+                                          <input className="input" id="novaObs" name="observacoes" placeholder="Ex.: parcela extra, serviço adicional" />
+                                        </div>
+                                        <div className="sm:col-span-2"><button className="btn btn-gold" type="submit">Adicionar parcela</button></div>
+                                      </form>
+                        </div>
+                        <div className="border-t border-line pt-4">
+                          <p className="mb-2 text-sm font-semibold text-gold-soft">Dividir em mais (ou menos) vezes</p>
+                          {aDividir.length === 0 ? (
+                            <p className="text-sm text-ink-soft">Não há parcelas a vencer para dividir. Para dívidas já vencidas, use a aba <strong>Dívida</strong>.</p>
+                          ) : (
+                            <>
+                              <p className="mb-2 text-xs text-ink-soft">
+                                Faltam <strong className="text-gold-soft">{aDividir.length}</strong> parcela(s) a vencer, somando <strong className="text-gold-soft">{money(totalADividir)}</strong>.
+                                Elas serão trocadas por parcelas mensais iguais. Parcelas já pagas ou vencidas não mudam.
+                              </p>
+                              <form action={reparcelarContrato.bind(null, id)} className="mt-3 grid gap-3 sm:grid-cols-2">
+                                              <p className="text-xs text-ink-soft sm:col-span-2">
+                                                Faltam <strong className="text-gold-soft">{aDividir.length}</strong> parcela(s) a vencer, somando <strong className="text-gold-soft">{money(totalADividir)}</strong>.
+                                                Elas serão trocadas por parcelas mensais iguais. Parcelas já pagas ou vencidas não mudam.
+                                              </p>
+                                              <div>
+                                                <label className="label" htmlFor="vezes">Dividir em quantas vezes</label>
+                                                <input className="input" id="vezes" name="vezes" type="number" min={1} max={60} defaultValue={aDividir.length} required />
+                                              </div>
+                                              <div>
+                                                <label className="label" htmlFor="primeiro">1º vencimento novo</label>
+                                                <input className="input" id="primeiro" name="primeiro" type="date" defaultValue={isoDate(aDividir[0].vencimento)} required />
+                                              </div>
+                                              <div className="sm:col-span-2">
+                                                <ConfirmButton className="btn btn-gold" mensagem="Refazer o parcelamento? As parcelas a vencer serão substituídas pelas novas.">Refazer parcelamento</ConfirmButton>
+                                              </div>
+                                            </form>
+                            </>
+                          )}
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-sm text-ink-soft">Sem permissão para alterar parcelas, ou contrato de permuta (sem parcelas).</p>
+                    )}
+                    <div className="border-t border-line pt-4">
+                      <form action={comecarControleEm.bind(null, id)} className="mt-5 grid gap-3 border-t border-white/10 pt-4 sm:grid-cols-2">
+                                  <div className="sm:col-span-2">
+                                    <p className="text-sm font-semibold text-gold-soft">Começar a controlar a partir de uma data</p>
+                                    <p className="mt-1 text-xs text-ink-soft">Use para contratos que já vinham de antes: as parcelas com vencimento anterior à data saem do sistema (pagas ou não). As datas de veiculação e os pontos continuam iguais.</p>
+                                  </div>
+                                  <div>
+                                    <label className="label" htmlFor="corte">Controlar a partir de</label>
+                                    <input className="input" id="corte" name="corte" type="date" defaultValue={isoDate(new Date(Date.UTC(hoje().getUTCFullYear(), hoje().getUTCMonth(), 1)))} required />
+                                  </div>
+                                  <div className="flex items-end">
+                                    <ConfirmButton className="btn btn-sm btn-danger" mensagem="Retirar do sistema as parcelas anteriores a essa data? Isso não pode ser desfeito.">Retirar parcelas anteriores</ConfirmButton>
+                                  </div>
+                                </form>
+                    </div>
+                    <p className="text-xs text-ink-faint">Para editar ou excluir uma parcela específica, use o botão <strong>Editar</strong> na linha dela, na lista de parcelas abaixo.</p>
+                  </div>
+                ),
+              },
+              {
+                id: "reajuste",
+                titulo: "Reajuste",
+                conteudo: (
+                  <>
+                    <form action={aplicarReajuste.bind(null, id)} className="mt-3 grid gap-3 sm:grid-cols-3">
+                                  <div>
+                                    <label className="label" htmlFor="percentual">Percentual (%)</label>
+                                    <input className="input" id="percentual" name="percentual" inputMode="decimal" placeholder="4,5" required />
+                                  </div>
+                                  <div>
+                                    <label className="label" htmlFor="indice">Índice</label>
+                                    <select className="input" id="indice" name="indice" defaultValue="IGP-M">
+                                      <option>IGP-M</option><option>IPCA</option><option>Acordo</option><option>Outro</option>
+                                    </select>
+                                  </div>
+                                  <div className="flex items-end">
+                                    <ConfirmButton className="btn btn-gold w-full" mensagem="Aplicar o reajuste nas parcelas futuras não pagas? Isso altera os valores a receber.">
+                                      Aplicar reajuste
+                                    </ConfirmButton>
+                                  </div>
+                                  <p className="text-xs text-ink-faint sm:col-span-3">Atualiza as parcelas futuras ainda não pagas e o valor mensal dos pontos vigentes. Parcelas já pagas ou vencidas não mudam.</p>
+                                </form>
+                    {c.reajustes.length > 0 && (
+                                <ul className="mt-3 divide-y divide-white/5 text-sm">
+                                  {c.reajustes.map((r) => (
+                                    <li key={r.id} className="flex justify-between gap-3 py-2">
+                                      <span>{dateBR(r.aplicadoEm)} · {r.indice} <strong className="text-gold-soft">{Number(r.percentual) > 0 ? "+" : ""}{Number(r.percentual).toString().replace(".", ",")}%</strong></span>
+                                      <span className="text-xs text-ink-faint">{r.usuarioNome}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                  </>
+                ),
+              },
+              ...(pode(user, "baixar") && vencidas.length > 0
+                ? [{
+                    id: "divida",
+                    titulo: `Dívida (${vencidas.length})`,
+                    conteudo: (
+                      <FormAcordo contratoId={id} parcelas={vencidas} hojeISO={isoDate(hoje())} mesQueVemISO={isoDate(proximoMes)} />
+                    ),
+                  }]
+                : []),
+            ]}
+          />
         </details>
       )}
-
-      {pode(user, "baixar") && c.status === "ATIVO" && vencidas.length > 0 && (
-        <details className="card mb-6 p-4">
-          <summary className="cursor-pointer font-semibold text-warn">Negociar dívida ({vencidas.length} parcela(s) vencida(s))</summary>
-          <FormAcordo contratoId={id} parcelas={vencidas} hojeISO={isoDate(hoje())} mesQueVemISO={isoDate(proximoMes)} />
-        </details>
+      {!(edita && c.status === "ATIVO") && c.reajustes.length > 0 && (
+        <section className="card mb-6 p-4">
+          <h2 className="mb-2 text-sm font-semibold text-gold-soft">Reajustes aplicados</h2>
+          <ul className="divide-y divide-white/5 text-sm">
+            {c.reajustes.map((r) => (
+              <li key={r.id} className="flex justify-between gap-3 py-2">
+                <span>{dateBR(r.aplicadoEm)} · {r.indice} <strong className="text-gold-soft">{Number(r.percentual) > 0 ? "+" : ""}{Number(r.percentual).toString().replace(".", ",")}%</strong></span>
+                <span className="text-xs text-ink-faint">{r.usuarioNome}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
       {c.acordos.length > 0 && (
@@ -359,42 +497,6 @@ export default async function ContratoPage({ params, searchParams }: {
             ))}
           </ul>
         </section>
-      )}
-
-      {(edita || c.reajustes.length > 0) && (
-        <details className="card mb-6 p-4" open={c.reajustes.length > 0 && false}>
-          <summary className="cursor-pointer font-semibold text-gold">Reajuste anual{c.reajustes.length > 0 && ` · ${c.reajustes.length} aplicado(s)`}</summary>
-          {edita && c.status === "ATIVO" && (
-            <form action={aplicarReajuste.bind(null, id)} className="mt-3 grid gap-3 sm:grid-cols-3">
-              <div>
-                <label className="label" htmlFor="percentual">Percentual (%)</label>
-                <input className="input" id="percentual" name="percentual" inputMode="decimal" placeholder="4,5" required />
-              </div>
-              <div>
-                <label className="label" htmlFor="indice">Índice</label>
-                <select className="input" id="indice" name="indice" defaultValue="IGP-M">
-                  <option>IGP-M</option><option>IPCA</option><option>Acordo</option><option>Outro</option>
-                </select>
-              </div>
-              <div className="flex items-end">
-                <ConfirmButton className="btn btn-gold w-full" mensagem="Aplicar o reajuste nas parcelas futuras não pagas? Isso altera os valores a receber.">
-                  Aplicar reajuste
-                </ConfirmButton>
-              </div>
-              <p className="text-xs text-ink-faint sm:col-span-3">Atualiza as parcelas futuras ainda não pagas e o valor mensal dos pontos vigentes. Parcelas já pagas ou vencidas não mudam.</p>
-            </form>
-          )}
-          {c.reajustes.length > 0 && (
-            <ul className="mt-3 divide-y divide-white/5 text-sm">
-              {c.reajustes.map((r) => (
-                <li key={r.id} className="flex justify-between gap-3 py-2">
-                  <span>{dateBR(r.aplicadoEm)} · {r.indice} <strong className="text-gold-soft">{Number(r.percentual) > 0 ? "+" : ""}{Number(r.percentual).toString().replace(".", ",")}%</strong></span>
-                  <span className="text-xs text-ink-faint">{r.usuarioNome}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </details>
       )}
 
       <h2 className="mb-3 font-semibold">Parcelas</h2>
@@ -472,52 +574,6 @@ export default async function ContratoPage({ params, searchParams }: {
         </table>
       </div>
 
-      {pode(user, "baixar") && c.formaPagamento !== "PERMUTA" && (
-        <div className="mt-4 grid gap-3 lg:grid-cols-2">
-          <details className="card p-4">
-            <summary className="cursor-pointer font-semibold text-gold">+ Adicionar parcela</summary>
-            <form action={adicionarParcela.bind(null, id)} className="mt-3 grid gap-3 sm:grid-cols-2">
-              <div>
-                <label className="label" htmlFor="novaValor">Valor</label>
-                <MaskedInput className="input" id="novaValor" name="valor" mask="dinheiro" placeholder="1.000,00" required />
-              </div>
-              <div>
-                <label className="label" htmlFor="novaVenc">Vencimento</label>
-                <input className="input" id="novaVenc" name="vencimento" type="date" required />
-              </div>
-              <div className="sm:col-span-2">
-                <label className="label" htmlFor="novaObs">Motivo (opcional)</label>
-                <input className="input" id="novaObs" name="observacoes" placeholder="Ex.: parcela extra, serviço adicional" />
-              </div>
-              <div className="sm:col-span-2"><button className="btn btn-gold" type="submit">Adicionar parcela</button></div>
-            </form>
-          </details>
-          <details className="card p-4">
-            <summary className="cursor-pointer font-semibold text-gold">Dividir em mais (ou menos) vezes</summary>
-            {aDividir.length === 0 ? (
-              <p className="mt-3 text-sm text-ink-soft">Não há parcelas a vencer para dividir. Para dívidas já vencidas, use <strong>Negociar dívida</strong>.</p>
-            ) : (
-              <form action={reparcelarContrato.bind(null, id)} className="mt-3 grid gap-3 sm:grid-cols-2">
-                <p className="text-xs text-ink-soft sm:col-span-2">
-                  Faltam <strong className="text-gold-soft">{aDividir.length}</strong> parcela(s) a vencer, somando <strong className="text-gold-soft">{money(totalADividir)}</strong>.
-                  Elas serão trocadas por parcelas mensais iguais. Parcelas já pagas ou vencidas não mudam.
-                </p>
-                <div>
-                  <label className="label" htmlFor="vezes">Dividir em quantas vezes</label>
-                  <input className="input" id="vezes" name="vezes" type="number" min={1} max={60} defaultValue={aDividir.length} required />
-                </div>
-                <div>
-                  <label className="label" htmlFor="primeiro">1º vencimento novo</label>
-                  <input className="input" id="primeiro" name="primeiro" type="date" defaultValue={isoDate(aDividir[0].vencimento)} required />
-                </div>
-                <div className="sm:col-span-2">
-                  <ConfirmButton className="btn btn-gold" mensagem="Refazer o parcelamento? As parcelas a vencer serão substituídas pelas novas.">Refazer parcelamento</ConfirmButton>
-                </div>
-              </form>
-            )}
-          </details>
-        </div>
-      )}
 
       {anexos}
     </main>
