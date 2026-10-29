@@ -350,9 +350,9 @@ export default async function ContratoPage({ params, searchParams }: {
                                       </div>
                                       <div>
                                         <label className="label" htmlFor="prazoMeses">Prazo</label>
-                                        <div className="flex gap-2">
-                                          <input className="input min-w-0 flex-1" id="prazoMeses" name="prazoMeses" type="number" min={1} max={260} defaultValue={12} required />
-                                          <select className="input w-auto" name="unidade" defaultValue="meses" aria-label="Unidade do prazo">
+                                        <div className="grid gap-2">
+                                          <input className="input min-w-0" id="prazoMeses" name="prazoMeses" type="number" min={1} max={260} defaultValue={12} required />
+                                          <select className="input min-w-0" name="unidade" defaultValue="meses" aria-label="Unidade do prazo">
                                             <option value="meses">Meses</option>
                                             <option value="bisemanas">Bi-semanas</option>
                                           </select>

@@ -67,11 +67,11 @@ export default function PontosDoContrato({ grupos, hojeISO, inicial = {}, prazoP
                     </div>
                     <div>
                       <label className="label" htmlFor={`prazo_${p.id}`}>Prazo ({unidades[p.id] === "bisemanas" ? "bi-semanas" : "meses"})</label>
-                      <div className="flex gap-2">
-                        <input className="input min-w-0 flex-1" id={`prazo_${p.id}`} name={`prazo_${p.id}`} type="number" min={1} max={unidades[p.id] === "bisemanas" ? 260 : 120} defaultValue={prazoPadrao} required />
+                      <div className={p.bisemanal ? "grid gap-2" : ""}>
+                        <input className="input min-w-0" id={`prazo_${p.id}`} name={`prazo_${p.id}`} type="number" min={1} max={unidades[p.id] === "bisemanas" ? 260 : 120} defaultValue={prazoPadrao} required />
                         {p.bisemanal && (
                           <select
-                            className="input w-auto"
+                            className="input min-w-0"
                             name={`unidade_${p.id}`}
                             value={unidades[p.id] ?? "meses"}
                             onChange={(e) => setUnidades((u) => ({ ...u, [p.id]: e.target.value === "bisemanas" ? "bisemanas" : "meses" }))}
