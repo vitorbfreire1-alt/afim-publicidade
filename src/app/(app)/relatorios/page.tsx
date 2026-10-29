@@ -39,7 +39,7 @@ export default async function Relatorios({ searchParams }: { searchParams: Promi
         <div><label className="label" htmlFor="ate">Até</label><input className="input" id="ate" name="ate" type="date" defaultValue={isoDate(periodo.fim)} max={isoDate(hoje())} /></div>
         <button className="btn btn-gold" type="submit">Atualizar</button>
         <div className="ml-auto flex flex-wrap gap-2">
-          {(["parcelas", "despesas", "contratos", "finalizados", "clientes"] as const).map((t) => (
+          {(["parcelas", "despesas", "contratos", "finalizados", "inadimplentes", "clientes"] as const).map((t) => (
             <a key={t} className="btn btn-sm" href={`/api/exportar/${t}?${qs}`}><Download className="size-3.5" /> {t[0].toUpperCase() + t.slice(1)} (Excel)</a>
           ))}
         </div>
@@ -91,7 +91,11 @@ export default async function Relatorios({ searchParams }: { searchParams: Promi
 
       <section className="card p-5">
         <h2 className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm font-semibold text-danger">
-          Inadimplência por cliente (hoje) <span className="text-xs font-normal text-ink-soft">Total com encargos: {money(totalInad)}</span>
+          Inadimplência por cliente (hoje)
+          <span className="flex flex-wrap items-center gap-3 text-xs font-normal text-ink-soft">
+            Total com encargos: {money(totalInad)}
+            <a className="btn btn-sm no-print" href={`/api/exportar/${"inadimplentes"}`}><Download className="size-3.5" /> Baixar inadimplentes (Excel)</a>
+          </span>
         </h2>
         <div className="table-wrap">
           <table className="table">

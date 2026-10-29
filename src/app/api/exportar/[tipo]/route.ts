@@ -2,8 +2,8 @@ import { getUser, pode } from "@/lib/auth";
 import { getConfig } from "@/lib/config";
 import { paraCsv, type Celula } from "@/lib/csv";
 import { calcularEncargos, regrasDe } from "@/lib/encargos";
-import { statusParcela } from "@/lib/financeiro";
-import { hoje } from "@/lib/format";
+import { filtroEmAtraso, statusParcela } from "@/lib/financeiro";
+import { diasEntre, hoje } from "@/lib/format";
 import { CATEGORIA_LABEL, FORMA_LABEL, STATUS_CONTRATO_LABEL, TIPO_SINGULAR } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
 import { contratosFinalizados, periodoDe } from "@/lib/relatorios";
@@ -35,6 +35,25 @@ export async function GET(req: Request, { params }: { params: Promise<{ tipo: st
     linhas = r.flatMap((c) =>
       c.pontos.map((cp) => [c.numero, c.cliente.nome, cp.ponto.nome, TIPO_SINGULAR[cp.ponto.tipo], num(cp.valor), cp.inicio, cp.prazoMeses, cp.fim, c.diaVencimento, FORMA_LABEL[c.formaPagamento], STATUS_CONTRATO_LABEL[c.status], c.vendedor?.nome]),
     );
+  } else if (tipo === "inadimplentes" && pode(user, "receber")) {
+    // Um cliente por linha, com o que ele deve hoje (parcelas vencidas e ainda não pagas), com multa e juros.
+    const regras = regrasDe(await getConfig());
+    const r = await prisma.parcela.findMany({ where: filtroEmAtraso(), orderBy: { vencimento: "asc" }, include: { contrato: { include: { cliente: true } } } });
+    const porCliente = new Map<string, { cliente: (typeof r)[number]["contrato"]["cliente"]; contratos: Set<number>; parcelas: number; maisAntiga: Date; nominal: number; atualizado: number }>();
+    for (const p of r) {
+      const c = p.contrato.cliente;
+      const l = porCliente.get(c.id) ?? { cliente: c, contratos: new Set<number>(), parcelas: 0, maisAntiga: p.vencimento, nominal: 0, atualizado: 0 };
+      l.contratos.add(p.contrato.numero);
+      l.parcelas += 1;
+      if (p.vencimento < l.maisAntiga) l.maisAntiga = p.vencimento;
+      l.nominal += Number(p.valor);
+      l.atualizado += calcularEncargos(Number(p.valor), p.vencimento, regras, h).total;
+      porCliente.set(c.id, l);
+    }
+    cab = ["Cliente", "CPF/CNPJ", "Contato", "Telefone", "E-mail", "Contratos", "Parcelas em atraso", "Vencida desde", "Dias de atraso", "Valor nominal", "Valor atualizado (multa e juros)"];
+    linhas = [...porCliente.values()]
+      .sort((a, b) => b.atualizado - a.atualizado)
+      .map((l) => [l.cliente.nome, l.cliente.documento, l.cliente.contato, l.cliente.telefone, l.cliente.email, [...l.contratos].sort((a, b) => a - b).map((n) => `#${n}`).join(", "), l.parcelas, l.maisAntiga, diasEntre(l.maisAntiga, h), Math.round(l.nominal * 100) / 100, Math.round(l.atualizado * 100) / 100]);
   } else if (tipo === "finalizados" && pode(user, "carteira", "valores")) {
     const r = await contratosFinalizados({ inicio, fim });
     cab = ["Nº", "Cliente", "Pontos", "Início", "Fim", "Forma de pagamento", "Status", "Contratado", "Recebido", "Em aberto", "Situação"];
