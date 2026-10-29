@@ -5,7 +5,7 @@ import MaskedInput from "./MaskedInput";
 
 export interface GrupoPontos {
   titulo: string;
-  pontos: { id: string; nome: string; ocupacao: string | null; lotado: boolean; cotas: number | null; bisemanal: boolean }[];
+  pontos: { id: string; nome: string; ocupacao: string | null; lotado: boolean; cotas: number | null; bisemanal: boolean; producao: { item: string; label: string; valor: string; formato: string }[] }[];
 }
 
 /** Escolha dos pontos do contrato; cada ponto marcado pede o seu valor mensal, início e prazo. */
@@ -84,6 +84,24 @@ export default function PontosDoContrato({ grupos, hojeISO, inicial = {}, prazoP
                       </div>
                       {p.bisemanal && unidades[p.id] === "bisemanas" && <p className="mt-1 text-xs text-ink-faint">Cada bi-semana tem 14 dias. O valor é por bi-semana; o sistema calcula as parcelas.</p>}
                     </div>
+                    {p.producao.length > 0 && (
+                      <fieldset className="sm:col-span-3">
+                        <legend className="label">Serviços de produção do formato {p.producao[0].formato} (cobrados do cliente, somados à 1ª parcela)</legend>
+                        <div className="grid gap-2">
+                          {p.producao.map((s) => (
+                            <div key={s.item} className="grid grid-cols-[1fr_4rem_7rem] items-center gap-2 text-sm">
+                              <label className="flex items-center gap-2">
+                                <input type="checkbox" name={`prod_${p.id}_${s.item}`} className="size-4 accent-[#d4a62a]" />
+                                {s.label}
+                              </label>
+                              <input className="input !py-1" name={`prodqtd_${p.id}_${s.item}`} type="number" min={1} max={99} defaultValue={1} aria-label={`Quantidade de ${s.label}`} title="Quantidade" />
+                              <MaskedInput className="input !py-1" name={`prodval_${p.id}_${s.item}`} mask="dinheiro" defaultValue={s.valor} aria-label={`Valor unitário de ${s.label}`} title="Valor unitário (R$)" />
+                            </div>
+                          ))}
+                        </div>
+                        <p className="mt-1 text-xs text-ink-faint">Marque o que será cobrado. Quantidade e valor unitário podem ser ajustados (os preços vêm da tabela em Configurações).</p>
+                      </fieldset>
+                    )}
                     {p.cotas && (
                       <div className="grid gap-3 sm:col-span-3 sm:grid-cols-3">
                         <div>

@@ -10,8 +10,8 @@ import { choqueComRecebida, parcelaDoMes, recalcularPeriodo, renumerarParcelas, 
 import { janelaDeRenovacao, verificarCotas } from "@/lib/cotas";
 import { addMeses, agregarParcelas, calcularFim, gerarParcelas } from "@/lib/financeiro";
 import { data, inteiro, texto } from "@/lib/form";
-import { dateBR, hoje, parseMoney } from "@/lib/format";
-import { FORMAS_CONTRATO } from "@/lib/labels";
+import { dateBR, hoje, money, parseMoney } from "@/lib/format";
+import { CUSTO_ITENS, CUSTO_LABEL, FORMAS_CONTRATO } from "@/lib/labels";
 import { MAX_PRAZO, calcularPrazo, unidadeDe } from "@/lib/prazo";
 import { prisma } from "@/lib/prisma";
 
@@ -79,6 +79,24 @@ export async function criarContrato(fd: FormData) {
   });
   const time = (d: Date) => d.getTime();
 
+  // Serviços de produção marcados (impressão, lona, colagem...): somados à 1ª parcela do contrato.
+  const producao: { texto: string; total: number }[] = [];
+  if (forma !== "PERMUTA") {
+    for (const p of pontos) {
+      for (const item of CUSTO_ITENS) {
+        if (fd.get(`prod_${p.id}_${item}`) !== "on") continue;
+        const qtd = inteiro(fd, `prodqtd_${p.id}_${item}`) || 1;
+        const unit = parseMoney(fd.get(`prodval_${p.id}_${item}`));
+        if (!Number.isInteger(qtd) || qtd < 1 || qtd > 99 || !(unit >= 0)) volta(`Confira a quantidade e o valor de ${CUSTO_LABEL[item]} em ${p.nome}.`);
+        producao.push({ texto: `${CUSTO_LABEL[item]} · ${p.nome}: ${qtd} × ${money(unit)}`, total: Math.round(qtd * unit * 100) / 100 });
+      }
+    }
+  }
+  const totalProducao = Math.round(producao.reduce((s, x) => s + x.total, 0) * 100) / 100;
+  const parcelasContrato = forma === "PERMUTA" ? [] : agregarParcelas(comFim, diaVencimento);
+  const notaProducao = producao.length ? `Produção cobrada na 1ª parcela (${money(totalProducao)}): ${producao.map((x) => x.texto).join("; ")}.` : "";
+  if (producao.length && parcelasContrato.length) parcelasContrato[0] = { ...parcelasContrato[0], valor: Math.round((parcelasContrato[0].valor + totalProducao) * 100) / 100 };
+
   const lotado = await verificarCotas(comFim);
   if (lotado) volta(lotado);
 
@@ -89,13 +107,13 @@ export async function criarContrato(fd: FormData) {
       diaVencimento,
       inicio: new Date(Math.min(...comFim.map((i) => time(i.inicio)))),
       fim: new Date(Math.max(...comFim.map((i) => time(i.fim)))),
-      observacoes: texto(fd, "observacoes"),
+      observacoes: [texto(fd, "observacoes"), notaProducao].filter(Boolean).join("\n") || null,
       vendedorId,
       comissaoPct: vendedorId ? comissaoPct : null,
       pontos: { create: comFim },
       permutaDescricao: forma === "PERMUTA" ? texto(fd, "permutaDescricao") : null,
       // Permuta não gera parcelas a receber.
-      parcelas: { create: forma === "PERMUTA" ? [] : agregarParcelas(comFim, diaVencimento) },
+      parcelas: { create: parcelasContrato.map((x, i) => (i === 0 && producao.length ? { ...x, observacoes: `Inclui produção: ${money(totalProducao)}` } : x)) },
     },
   });
   if (propostaId) {

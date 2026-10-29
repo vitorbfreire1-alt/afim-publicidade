@@ -3,7 +3,7 @@ import PontosDoContrato from "@/components/PontosDoContrato";
 import { criarContrato } from "@/app/actions/contratos";
 import { requireUser } from "@/lib/auth";
 import { isoDate, hoje } from "@/lib/format";
-import { FORMAS_CONTRATO, FORMA_LABEL, TIPOS, TIPO_LABEL } from "@/lib/labels";
+import { CUSTO_ITENS, CUSTO_LABEL, FORMAS_CONTRATO, FORMA_LABEL, TIPOS, TIPO_LABEL } from "@/lib/labels";
 import { ocupadasEm } from "@/lib/cotas";
 import { prisma } from "@/lib/prisma";
 
@@ -19,6 +19,7 @@ export default async function NovoContrato({ searchParams }: { searchParams: Pro
     ? await prisma.proposta.findFirst({ where: { id: sp.proposta, contratoId: null }, include: { pontos: true } })
     : null;
   const cliente = proposta?.clienteId ?? sp.cliente;
+  const custos = await prisma.custoOutdoor.findMany();
   const [clientes, pontos, vendedores] = await Promise.all([
     prisma.cliente.findMany({ where: { ativo: true }, orderBy: { nome: "asc" } }),
     prisma.ponto.findMany({
@@ -53,7 +54,14 @@ export default async function NovoContrato({ searchParams }: { searchParams: Pro
               .filter((p) => p.tipo === t)
               .map((p) => {
                 const agora = ocupadasEm(p.contratos, p.cotas, h);
-                return { id: p.id, nome: p.nome, ocupacao: p.cotas ? `${agora}/${p.cotas} cotas hoje` : agora > 0 ? `${agora} cliente(s) hoje` : null, lotado: Boolean(p.cotas && agora >= p.cotas), cotas: p.cotas, bisemanal: p.tipo === "OUTDOOR" || p.tipo === "TRIEDRO" };
+                return { id: p.id, nome: p.nome, ocupacao: p.cotas ? `${agora}/${p.cotas} cotas hoje` : agora > 0 ? `${agora} cliente(s) hoje` : null, lotado: Boolean(p.cotas && agora >= p.cotas), cotas: p.cotas,
+                  bisemanal: p.tipo === "OUTDOOR" || p.tipo === "TRIEDRO",
+                  // Serviços de produção da tabela de preços, conforme o tipo e o formato do ponto.
+                  producao: CUSTO_ITENS.flatMap((item) => {
+                    const c = p.formato ? custos.find((x) => x.tipo === p.tipo && x.formato === p.formato && x.item === item) : null;
+                    return c ? [{ item, label: CUSTO_LABEL[item], valor: Number(c.valor).toFixed(2).replace(".", ","), formato: p.formato! }] : [];
+                  }),
+                };
               }),
           })).filter((g) => g.pontos.length > 0)}
         />
