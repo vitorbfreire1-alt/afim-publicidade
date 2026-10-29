@@ -12,6 +12,7 @@ import { addMeses, agregarParcelas, calcularFim, gerarParcelas } from "@/lib/fin
 import { data, inteiro, texto } from "@/lib/form";
 import { dateBR, hoje, parseMoney } from "@/lib/format";
 import { FORMAS_CONTRATO } from "@/lib/labels";
+import { MAX_PRAZO, calcularPrazo, unidadeDe } from "@/lib/prazo";
 import { prisma } from "@/lib/prisma";
 
 export async function criarContrato(fd: FormData) {
@@ -40,15 +41,16 @@ export async function criarContrato(fd: FormData) {
     pontoId,
     valor: parseMoney(fd.get(`valor_${pontoId}`)),
     inicio: data(fd, `inicio_${pontoId}`),
-    prazoMeses: inteiro(fd, `prazo_${pontoId}`),
+    quantidade: inteiro(fd, `prazo_${pontoId}`),
+    unidade: unidadeDe(fd.get(`unidade_${pontoId}`)),
     ocupaTudo: fd.get(`inteiro_${pontoId}`) === "on",
     cotasUsadas: Math.max(1, inteiro(fd, `cotas_${pontoId}`) || 1),
   }));
   for (const it of itens) {
     if (!(it.valor > 0)) volta("Informe o valor mensal de cada ponto escolhido.");
     if (!it.inicio) volta("Informe a data de início de cada ponto escolhido.");
-    if (!Number.isInteger(it.prazoMeses) || it.prazoMeses < 1 || it.prazoMeses > 120) {
-      volta("O prazo de cada ponto deve ser de 1 a 120 meses.");
+    if (!Number.isInteger(it.quantidade) || it.quantidade < 1 || it.quantidade > MAX_PRAZO[it.unidade]) {
+      volta(it.unidade === "bisemanas" ? "O prazo de cada ponto deve ser de 1 a 260 bi-semanas." : "O prazo de cada ponto deve ser de 1 a 120 meses.");
     }
   }
 
@@ -63,15 +65,18 @@ export async function criarContrato(fd: FormData) {
     if (cotas && it.cotasUsadas > cotas) volta("O contrato não pode ocupar mais cotas do que o ponto tem.");
   }
 
-  const comFim = itens.map((it) => ({
-    pontoId: it.pontoId,
-    valor: it.valor,
-    inicio: it.inicio!,
-    prazoMeses: it.prazoMeses,
-    fim: calcularFim(it.inicio!, it.prazoMeses),
-    ocupaTudo: it.ocupaTudo,
-    cotasUsadas: it.cotasUsadas,
-  }));
+  const comFim = itens.map((it) => {
+    const prazo = calcularPrazo(it.inicio!, it.quantidade, it.unidade, it.valor);
+    return {
+      pontoId: it.pontoId,
+      valor: prazo.valorMensal,
+      inicio: it.inicio!,
+      prazoMeses: prazo.prazoMeses,
+      fim: prazo.fim,
+      ocupaTudo: it.ocupaTudo,
+      cotasUsadas: it.cotasUsadas,
+    };
+  });
   const time = (d: Date) => d.getTime();
 
   const lotado = await verificarCotas(comFim);
@@ -119,13 +124,15 @@ export async function adicionarPonto(contratoId: string, fd: FormData) {
   const pontoId = String(fd.get("pontoId") ?? "");
   const valor = parseMoney(fd.get("valor"));
   const inicio = data(fd, "inicio");
-  const prazoMeses = inteiro(fd, "prazoMeses");
+  const quantidade = inteiro(fd, "prazoMeses");
+  const unidade = unidadeDe(fd.get("unidade"));
   const ocupaTudo = fd.get("ocupaTudo") === "on";
   const cotasUsadas = Math.max(1, inteiro(fd, "cotasUsadas") || 1);
   if (!pontoId) volta("Escolha o ponto.");
   if (!(valor > 0)) volta("Informe o valor mensal do ponto.");
   if (!inicio) volta("Informe a data de início.");
-  if (!Number.isInteger(prazoMeses) || prazoMeses < 1 || prazoMeses > 120) volta("O prazo deve ser de 1 a 120 meses.");
+  if (!Number.isInteger(quantidade) || quantidade < 1 || quantidade > MAX_PRAZO[unidade]) volta(unidade === "bisemanas" ? "O prazo deve ser de 1 a 260 bi-semanas." : "O prazo deve ser de 1 a 120 meses.");
+  const { prazoMeses, fim: fimPonto, valorMensal } = calcularPrazo(inicio!, quantidade, unidade, valor);
 
   const [contrato, ponto] = await Promise.all([
     prisma.contrato.findUnique({ where: { id: contratoId }, include: { pontos: true, parcelas: true } }),
@@ -135,15 +142,15 @@ export async function adicionarPonto(contratoId: string, fd: FormData) {
   if (!ponto?.ativo) volta("Ponto inválido ou desativado.");
   if (contrato!.pontos.some((p) => p.pontoId === pontoId)) volta("Esse ponto já está no contrato. Use Renovar para estender o prazo.");
 
-  const novas = gerarParcelas(inicio!, prazoMeses, contrato!.diaVencimento, valor);
-  const lotado = await verificarCotas([{ pontoId, inicio: inicio!, fim: calcularFim(inicio!, prazoMeses), ocupaTudo, cotasUsadas }], contratoId);
+  const novas = gerarParcelas(inicio!, prazoMeses, contrato!.diaVencimento, valorMensal);
+  const lotado = await verificarCotas([{ pontoId, inicio: inicio!, fim: fimPonto, ocupaTudo, cotasUsadas }], contratoId);
   if (lotado) volta(lotado);
   const choque = choqueComRecebida(novas, contrato!.parcelas);
   if (choque) volta(`O ponto começaria cobrando em ${dateBR(choque.vencimento)}, mês que já foi recebido. Escolha um início posterior.`);
 
   await prisma.$transaction(async (tx) => {
     await tx.contratoPonto.create({
-      data: { contratoId, pontoId, valor, inicio: inicio!, prazoMeses, fim: calcularFim(inicio!, prazoMeses), ocupaTudo, cotasUsadas },
+      data: { contratoId, pontoId, valor: valorMensal, inicio: inicio!, prazoMeses, fim: fimPonto, ocupaTudo, cotasUsadas },
     });
     await somarParcelas(tx, contratoId, novas);
     await recalcularPeriodo(tx, contratoId);

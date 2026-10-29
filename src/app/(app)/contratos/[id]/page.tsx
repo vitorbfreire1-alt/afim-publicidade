@@ -341,7 +341,7 @@ export default async function ContratoPage({ params, searchParams }: {
                                         </select>
                                       </div>
                                       <div>
-                                        <label className="label" htmlFor="valor">Valor mensal (R$)</label>
+                                        <label className="label" htmlFor="valor">Valor (R$) — mensal, ou por bi-semana</label>
                                         <MaskedInput className="input" id="valor" name="valor" mask="dinheiro" placeholder="1.500,00" required />
                                       </div>
                                       <div>
@@ -349,8 +349,15 @@ export default async function ContratoPage({ params, searchParams }: {
                                         <input className="input" id="inicio" name="inicio" type="date" defaultValue={isoDate(hoje())} required />
                                       </div>
                                       <div>
-                                        <label className="label" htmlFor="prazoMeses">Prazo (meses)</label>
-                                        <input className="input" id="prazoMeses" name="prazoMeses" type="number" min={1} max={120} defaultValue={12} required />
+                                        <label className="label" htmlFor="prazoMeses">Prazo</label>
+                                        <div className="flex gap-2">
+                                          <input className="input min-w-0 flex-1" id="prazoMeses" name="prazoMeses" type="number" min={1} max={260} defaultValue={12} required />
+                                          <select className="input w-auto" name="unidade" defaultValue="meses" aria-label="Unidade do prazo">
+                                            <option value="meses">Meses</option>
+                                            <option value="bisemanas">Bi-semanas</option>
+                                          </select>
+                                        </div>
+                                        <p className="mt-1 text-xs text-ink-faint">Bi-semana (14 dias) só para outdoor e triedro; o valor então é por bi-semana.</p>
                                       </div>
                                       <div>
                                         <label className="label" htmlFor="cotasUsadas">Cotas que ocupa</label>

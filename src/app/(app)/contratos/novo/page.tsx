@@ -53,7 +53,7 @@ export default async function NovoContrato({ searchParams }: { searchParams: Pro
               .filter((p) => p.tipo === t)
               .map((p) => {
                 const agora = ocupadasEm(p.contratos, p.cotas, h);
-                return { id: p.id, nome: p.nome, ocupacao: p.cotas ? `${agora}/${p.cotas} cotas hoje` : agora > 0 ? `${agora} cliente(s) hoje` : null, lotado: Boolean(p.cotas && agora >= p.cotas), cotas: p.cotas };
+                return { id: p.id, nome: p.nome, ocupacao: p.cotas ? `${agora}/${p.cotas} cotas hoje` : agora > 0 ? `${agora} cliente(s) hoje` : null, lotado: Boolean(p.cotas && agora >= p.cotas), cotas: p.cotas, bisemanal: p.tipo === "OUTDOOR" || p.tipo === "TRIEDRO" };
               }),
           })).filter((g) => g.pontos.length > 0)}
         />
