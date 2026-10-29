@@ -39,7 +39,7 @@ export async function salvarCustos(fd: FormData) {
       create: g,
     })),
   ]);
-  await registrar(user, "alterou", "CustoOutdoor", null, "Tabela de custos do outdoor");
+  await registrar(user, "alterou", "CustoOutdoor", null, "Tabela de custos de outdoor e triedro");
   revalidatePath("/", "layout");
   redirect(msg("/configuracoes", "ok", "Tabela de custos salva."));
 }

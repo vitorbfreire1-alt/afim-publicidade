@@ -71,8 +71,8 @@ export default async function Configuracoes({ searchParams }: { searchParams: Pr
 
       <form action={salvarCustos} className="card mt-8 space-y-4 p-5">
         <div>
-          <h2 className="text-sm font-semibold text-gold-soft">Custos do outdoor por formato</h2>
-          <p className="mt-1 text-xs text-ink-soft">Deixe em branco o serviço que não se aplica ao formato. Esses valores são usados para lançar as despesas de cada ponto de outdoor.</p>
+          <h2 className="text-sm font-semibold text-gold-soft">Custos de outdoor e triedro por formato</h2>
+          <p className="mt-1 text-xs text-ink-soft">Deixe em branco o serviço que não se aplica ao formato. Esses valores são usados para lançar as despesas de cada ponto de outdoor e de triedro, conforme o formato cadastrado no ponto. Se o triedro tiver outros tamanhos, crie o formato novo na última coluna (ex.: 3x2).</p>
         </div>
         <div className="table-wrap">
           <table className="table">

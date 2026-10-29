@@ -44,7 +44,7 @@ export default function PontoForm({ ponto, tipoInicial, action, label }: {
           <input className="input" id="resolucao" name="resolucao" placeholder="Ex.: P4 · 960x576 px" defaultValue={ponto?.resolucao ?? ""} />
         </div>
         <div>
-          <label className="label" htmlFor="formato">Formato do outdoor</label>
+          <label className="label" htmlFor="formato">Formato (outdoor e triedro)</label>
           <input className="input" id="formato" name="formato" placeholder="Ex.: 9x3" defaultValue={ponto?.formato ?? ""} />
         </div>
         <div>

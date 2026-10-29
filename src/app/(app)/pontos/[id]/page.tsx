@@ -33,7 +33,7 @@ export default async function PontoPage({ params, searchParams }: {
   if (!ponto) notFound();
 
   const edita = pode(user, "editar");
-  const custos = ponto.tipo === "OUTDOOR" && ponto.formato && pode(user, "despesas")
+  const custos = (ponto.tipo === "OUTDOOR" || ponto.tipo === "TRIEDRO") && ponto.formato && pode(user, "despesas")
     ? await prisma.custoOutdoor.findMany({ where: { formato: ponto.formato } })
     : [];
   const v = pode(user, "valores");
