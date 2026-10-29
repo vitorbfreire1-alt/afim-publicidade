@@ -86,7 +86,7 @@ export default function PontosDoContrato({ grupos, hojeISO, inicial = {}, prazoP
                     </div>
                     {p.producao.length > 0 && (
                       <fieldset className="sm:col-span-3">
-                        <legend className="label">Serviços de produção do formato {p.producao[0].formato} (cobrados do cliente, somados à 1ª parcela)</legend>
+                        <legend className="label">Serviços de produção do formato {p.producao[0].formato} — opcional (somados à 1ª parcela)</legend>
                         <div className="grid gap-2">
                           {p.producao.map((s) => (
                             <div key={s.item} className="grid grid-cols-[1fr_4rem_7rem] items-center gap-2 text-sm">
@@ -99,7 +99,7 @@ export default function PontosDoContrato({ grupos, hojeISO, inicial = {}, prazoP
                             </div>
                           ))}
                         </div>
-                        <p className="mt-1 text-xs text-ink-faint">Marque o que será cobrado. Quantidade e valor unitário podem ser ajustados (os preços vêm da tabela em Configurações).</p>
+                        <p className="mt-1 text-xs text-ink-faint">Opcional: deixe tudo desmarcado para fechar só pelo valor do espaço. Se o cliente trocar a arte depois, a colagem é cobrada à parte em Editar contrato → Parcelas → Cobrar produção. Os preços vêm da tabela em Configurações e podem ser ajustados aqui.</p>
                       </fieldset>
                     )}
                     {p.cotas && (

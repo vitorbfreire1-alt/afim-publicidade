@@ -9,8 +9,8 @@ import { requireUser } from "@/lib/auth";
 import { renumerarParcelas } from "@/lib/contrato";
 import { addMeses } from "@/lib/financeiro";
 import { data, inteiro, texto } from "@/lib/form";
-import { addDias, hoje, parseMoney } from "@/lib/format";
-import { FORMAS } from "@/lib/labels";
+import { addDias, hoje, money, parseMoney } from "@/lib/format";
+import { CUSTO_ITENS, CUSTO_LABEL, FORMAS } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
 
 export async function receberParcela(id: string, volta: string, fd: FormData) {
@@ -183,4 +183,41 @@ export async function dividirParcelasDoContrato(contratoId: string, fd: FormData
   await registrar(user, "dividiu parcelas", "Contrato", contratoId, `${alvo.length} parcela(s) em ${partes}x a cada ${intervalo} dias`);
   revalidatePath("/", "layout");
   volta("ok", `${alvo.length} parcela(s) divididas em ${partes} pagamentos cada, a cada ${intervalo} dias.`);
+}
+
+/**
+ * Cobra serviços de produção à parte (ex.: colagem quando o cliente troca a arte) como uma parcela avulsa.
+ * Os campos vêm por ponto e serviço: `cobrar_{pontoId}_{ITEM}` (marcado), `cqtd_...` (quantidade) e `cval_...` (valor unitário).
+ */
+export async function cobrarProducao(contratoId: string, fd: FormData) {
+  const user = await requireUser("baixar");
+  const volta = (tipo: "erro" | "ok", t: string) => redirect(msg(`/contratos/${contratoId}`, tipo, t));
+  const vencimento = data(fd, "vencimento");
+  if (!vencimento) volta("erro", "Informe o vencimento da cobrança.");
+  const motivo = texto(fd, "motivo") ?? "Troca de arte";
+
+  const contrato = await prisma.contrato.findUnique({ where: { id: contratoId }, include: { pontos: { include: { ponto: true } } } });
+  if (!contrato) volta("erro", "Contrato não encontrado.");
+
+  const linhas: string[] = [];
+  let centavos = 0;
+  for (const cp of contrato!.pontos) {
+    for (const item of CUSTO_ITENS) {
+      if (fd.get(`cobrar_${cp.pontoId}_${item}`) !== "on") continue;
+      const qtd = inteiro(fd, `cqtd_${cp.pontoId}_${item}`) || 1;
+      const unit = parseMoney(fd.get(`cval_${cp.pontoId}_${item}`));
+      if (!Number.isInteger(qtd) || qtd < 1 || qtd > 99 || !(unit >= 0)) volta("erro", `Confira a quantidade e o valor de ${CUSTO_LABEL[item]} em ${cp.ponto.nome}.`);
+      centavos += Math.round(qtd * unit * 100);
+      linhas.push(`${CUSTO_LABEL[item]} · ${cp.ponto.nome}: ${qtd} × ${money(unit)}`);
+    }
+  }
+  if (!linhas.length || centavos <= 0) volta("erro", "Marque ao menos um serviço com valor maior que zero.");
+
+  await prisma.$transaction(async (tx) => {
+    await tx.parcela.create({ data: { contratoId, numero: 2_000_000, vencimento: vencimento!, valor: centavos / 100, observacoes: `${motivo}: ${linhas.join("; ")}` } });
+    await renumerarParcelas(tx, contratoId);
+  });
+  await registrar(user, "cobrou produção", "Contrato", contratoId, `${motivo}: ${money(centavos / 100)}`);
+  revalidatePath("/", "layout");
+  volta("ok", `Cobrança de produção de ${money(centavos / 100)} lançada (${motivo}).`);
 }

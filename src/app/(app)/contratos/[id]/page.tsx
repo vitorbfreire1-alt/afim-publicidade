@@ -11,12 +11,12 @@ import MaskedInput from "@/components/MaskedInput";
 import ReceberParcela from "@/components/ReceberParcela";
 import StatusBadge from "@/components/StatusBadge";
 import { adicionarPonto, alterarValorPonto, alterarDatasPonto, alterarReservaPonto, aplicarReajuste, comecarControleEm, editarContrato, editarParcela, encerrarPonto, mudarStatusContrato, renovarPonto, trocarPonto } from "@/app/actions/contratos";
-import { adicionarParcela, dividirParcela, dividirParcelasDoContrato, excluirParcela, reparcelarContrato } from "@/app/actions/parcelas";
+import { adicionarParcela, cobrarProducao, dividirParcela, dividirParcelasDoContrato, excluirParcela, reparcelarContrato } from "@/app/actions/parcelas";
 import { desativarLinkPublico, gerarLinkPublico } from "@/app/actions/publico";
 import FormAcordo from "@/components/FormAcordo";
 import { pode, requireUser } from "@/lib/auth";
 import SeloVencimento from "@/components/SeloVencimento";
-import { FORMAS_CONTRATO, FORMA_LABEL as FORMA_ROTULO } from "@/lib/labels";
+import { CUSTO_ITENS, CUSTO_LABEL, FORMAS_CONTRATO, FORMA_LABEL as FORMA_ROTULO } from "@/lib/labels";
 import { statusParcela, valorMensalAtual } from "@/lib/financeiro";
 import { addDias, dateBR, hoje, isoDate, money } from "@/lib/format";
 import { linkCobranca } from "@/lib/whatsapp";
@@ -63,6 +63,15 @@ export default async function ContratoPage({ params, searchParams }: {
     .filter((p) => !p.pagoEm && !p.renegociadaEm && p.vencimento < hojeD)
     .map((p) => ({ id: p.id, rotulo: `${p.numero}/${c.parcelas.length} · venceu ${dateBR(p.vencimento)}`, atualizado: calcularEncargos(Number(p.valor), p.vencimento, regras).total }));
   const proximoMes = addDias(hojeD, 30);
+  // Serviços de produção da tabela de preços, para os pontos do contrato que têm formato cadastrado.
+  const tabelaCustos = await prisma.custoOutdoor.findMany();
+  const producaoPorPonto = c.pontos.flatMap((cp) => {
+    const itens = CUSTO_ITENS.flatMap((item) => {
+      const t = cp.ponto.formato ? tabelaCustos.find((x) => x.tipo === cp.ponto.tipo && x.formato === cp.ponto.formato && x.item === item) : null;
+      return t ? [{ item, valor: Number(t.valor).toFixed(2).replace(".", ",") }] : [];
+    });
+    return itens.length ? [{ cp, itens }] : [];
+  });
   const aDividir = c.parcelas.filter((p) => !p.pagoEm && !p.renegociadaEm && !p.acordoId && p.vencimento >= hojeD);
   const totalADividir = aDividir.reduce((s, p) => s + Number(p.valor), 0);
 
@@ -458,6 +467,42 @@ export default async function ContratoPage({ params, searchParams }: {
                           <div className="sm:col-span-2">
                             <ConfirmButton className="btn btn-gold" mensagem="Dividir cada parcela a vencer em vários pagamentos? As parcelas atuais serão substituídas.">Dividir cada parcela</ConfirmButton>
                           </div>
+                        </form>
+                      </div>
+                    )}
+                    {pode(user, "baixar") && c.formaPagamento !== "PERMUTA" && producaoPorPonto.length > 0 && (
+                      <div className="border-t border-line pt-4">
+                        <p className="mb-1 text-sm font-semibold text-gold-soft">Cobrar produção (troca de arte, colagem…)</p>
+                        <p className="mb-2 text-xs text-ink-soft">Para quando o cliente troca a arte e paga um adicional de colagem, ou outro serviço de produção. Vira uma parcela à parte; a mensalidade do contrato não muda.</p>
+                        <form action={cobrarProducao.bind(null, id)} className="grid gap-3">
+                          {producaoPorPonto.map(({ cp, itens }) => (
+                            <fieldset key={cp.pontoId} className="card p-3">
+                              <legend className="px-1 text-xs font-semibold text-gold">{cp.ponto.nome} · formato {cp.ponto.formato}</legend>
+                              <div className="grid gap-2">
+                                {itens.map((s) => (
+                                  <div key={s.item} className="grid grid-cols-[1fr_4rem_7rem] items-center gap-2 text-sm">
+                                    <label className="flex items-center gap-2">
+                                      <input type="checkbox" name={`cobrar_${cp.pontoId}_${s.item}`} className="size-4 accent-[#d4a62a]" />
+                                      {CUSTO_LABEL[s.item]}
+                                    </label>
+                                    <input className="input !py-1" name={`cqtd_${cp.pontoId}_${s.item}`} type="number" min={1} max={99} defaultValue={1} aria-label={`Quantidade de ${CUSTO_LABEL[s.item]}`} title="Quantidade" />
+                                    <MaskedInput className="input !py-1" name={`cval_${cp.pontoId}_${s.item}`} mask="dinheiro" defaultValue={s.valor} aria-label={`Valor unitário de ${CUSTO_LABEL[s.item]}`} title="Valor unitário (R$)" />
+                                  </div>
+                                ))}
+                              </div>
+                            </fieldset>
+                          ))}
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <div>
+                              <label className="label" htmlFor="prodVenc">Vencimento da cobrança</label>
+                              <input className="input" id="prodVenc" name="vencimento" type="date" defaultValue={isoDate(hoje())} required />
+                            </div>
+                            <div>
+                              <label className="label" htmlFor="prodMotivo">Motivo</label>
+                              <input className="input" id="prodMotivo" name="motivo" defaultValue="Troca de arte" />
+                            </div>
+                          </div>
+                          <div><button className="btn btn-gold" type="submit">Lançar cobrança de produção</button></div>
                         </form>
                       </div>
                     )}
