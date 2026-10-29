@@ -469,12 +469,13 @@ ALTER TABLE "Acordo" ADD CONSTRAINT "Acordo_contratoId_fkey" FOREIGN KEY ("contr
 -- CreateTable
 CREATE TABLE "CustoOutdoor" (
     "id" TEXT NOT NULL,
+    "tipo" "TipoMidia" NOT NULL DEFAULT 'OUTDOOR',
     "formato" TEXT NOT NULL,
     "item" "CustoItem" NOT NULL,
     "valor" DECIMAL(12,2) NOT NULL,
     CONSTRAINT "CustoOutdoor_pkey" PRIMARY KEY ("id")
 );
-CREATE UNIQUE INDEX "CustoOutdoor_formato_item_key" ON "CustoOutdoor"("formato", "item");
+CREATE UNIQUE INDEX "CustoOutdoor_tipo_formato_item_key" ON "CustoOutdoor"("tipo", "formato", "item");
 
 -- CreateTable
 CREATE TABLE "PushInscricao" (

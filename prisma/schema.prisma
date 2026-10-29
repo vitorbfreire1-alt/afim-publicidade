@@ -277,11 +277,13 @@ model PushInscricao {
 // Tabela de custos do outdoor: valor de cada serviço por formato (item ausente = não se aplica).
 model CustoOutdoor {
   id      String    @id @default(cuid())
+  // Outdoor e triedro têm tabelas de preços separadas.
+  tipo    TipoMidia @default(OUTDOOR)
   formato String
   item    CustoItem
   valor   Decimal   @db.Decimal(12, 2)
 
-  @@unique([formato, item])
+  @@unique([tipo, formato, item])
 }
 
 // Configurações da empresa e regras de cobrança (uma linha só, id fixo).

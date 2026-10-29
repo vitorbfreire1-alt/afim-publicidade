@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import type { CustoItem } from "@prisma/client";
+import type { CustoItem, TipoMidia } from "@prisma/client";
 import { msg } from "@/components/Flash";
 import { registrar } from "@/lib/audit";
 import { requireUser } from "@/lib/auth";
@@ -12,8 +12,9 @@ import { CUSTO_ITENS, CUSTO_LABEL } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
 
 /** Salva a tabela inteira: campos `v|formato|ITEM`; vazio remove o valor; `novoFormato` cria uma linha nova. */
-export async function salvarCustos(fd: FormData) {
+export async function salvarCustos(tipo: TipoMidia, fd: FormData) {
   const user = await requireUser("DONO");
+  if (tipo !== "OUTDOOR" && tipo !== "TRIEDRO") redirect(msg("/configuracoes", "erro", "Tipo de mídia inválido."));
   const novo = normalizarFormato(String(fd.get("novoFormato") ?? ""));
   if (novo && !/^\d+([.,]\d+)?x\d+([.,]\d+)?$/.test(novo)) {
     redirect(msg("/configuracoes", "erro", "Formato inválido. Use o padrão 9x3."));
@@ -32,14 +33,14 @@ export async function salvarCustos(fd: FormData) {
     grava.push({ formato, item: item as CustoItem, valor });
   }
   await prisma.$transaction([
-    ...apaga.map((a) => prisma.custoOutdoor.deleteMany({ where: a })),
+    ...apaga.map((a) => prisma.custoOutdoor.deleteMany({ where: { tipo, ...a } })),
     ...grava.map((g) => prisma.custoOutdoor.upsert({
-      where: { formato_item: { formato: g.formato, item: g.item } },
+      where: { tipo_formato_item: { tipo, formato: g.formato, item: g.item } },
       update: { valor: g.valor },
-      create: g,
+      create: { tipo, ...g },
     })),
   ]);
-  await registrar(user, "alterou", "CustoOutdoor", null, "Tabela de custos de outdoor e triedro");
+  await registrar(user, "alterou", "CustoOutdoor", null, `Tabela de custos (${tipo === "TRIEDRO" ? "triedro" : "outdoor"})`);
   revalidatePath("/", "layout");
   redirect(msg("/configuracoes", "ok", "Tabela de custos salva."));
 }
@@ -54,7 +55,7 @@ export async function lancarCustosPonto(pontoId: string, fd: FormData) {
   if (!vencimento) volta("erro", "Informe a data.");
   const marcados = CUSTO_ITENS.filter((i) => fd.get(`item_${i}`) === "on");
   if (marcados.length === 0) volta("erro", "Marque ao menos um serviço.");
-  const tabela = await prisma.custoOutdoor.findMany({ where: { formato: ponto!.formato!, item: { in: marcados } } });
+  const tabela = await prisma.custoOutdoor.findMany({ where: { tipo: ponto!.tipo, formato: ponto!.formato!, item: { in: marcados } } });
   if (tabela.length === 0) volta("erro", "Esses serviços não têm valor na tabela para este formato.");
   const motivo = texto(fd, "motivo");
   await prisma.despesa.createMany({
