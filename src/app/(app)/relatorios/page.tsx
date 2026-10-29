@@ -1,9 +1,10 @@
 import { Download } from "lucide-react";
 import BotaoImprimir from "@/components/BotaoImprimir";
 import { requireUser } from "@/lib/auth";
-import { hoje, isoDate, money } from "@/lib/format";
+import Link from "next/link";
+import { dateBR, hoje, isoDate, money } from "@/lib/format";
 import { CATEGORIA_LABEL, TIPO_LABEL } from "@/lib/labels";
-import { periodoDe, relatorioFinanceiro } from "@/lib/relatorios";
+import { contratosFinalizados, periodoDe, relatorioFinanceiro } from "@/lib/relatorios";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Relatórios" };
@@ -18,7 +19,8 @@ function Barra({ valor, max, cor = "bg-gold" }: { valor: number; max: number; co
 export default async function Relatorios({ searchParams }: { searchParams: Promise<{ de?: string; ate?: string }> }) {
   const [, sp] = await Promise.all([requireUser("relatorios"), searchParams]);
   const periodo = periodoDe(sp.de, sp.ate);
-  const r = await relatorioFinanceiro(periodo);
+  const [r, finalizados] = await Promise.all([relatorioFinanceiro(periodo), contratosFinalizados(periodo)]);
+  const somaFin = finalizados.reduce((t, c) => ({ total: t.total + c.total, recebido: t.recebido + c.recebido, emAberto: t.emAberto + c.emAberto }), { total: 0, recebido: 0, emAberto: 0 });
   const qs = `de=${isoDate(periodo.inicio)}&ate=${isoDate(periodo.fim)}`;
   const maxMes = Math.max(1, ...r.porMes.map(([, v]) => v));
   const maxCliente = Math.max(1, ...r.porCliente.slice(0, 10).map((c) => c.total));
@@ -37,7 +39,7 @@ export default async function Relatorios({ searchParams }: { searchParams: Promi
         <div><label className="label" htmlFor="ate">Até</label><input className="input" id="ate" name="ate" type="date" defaultValue={isoDate(periodo.fim)} max={isoDate(hoje())} /></div>
         <button className="btn btn-gold" type="submit">Atualizar</button>
         <div className="ml-auto flex flex-wrap gap-2">
-          {(["parcelas", "despesas", "contratos", "clientes"] as const).map((t) => (
+          {(["parcelas", "despesas", "contratos", "finalizados", "clientes"] as const).map((t) => (
             <a key={t} className="btn btn-sm" href={`/api/exportar/${t}?${qs}`}><Download className="size-3.5" /> {t[0].toUpperCase() + t.slice(1)} (Excel)</a>
           ))}
         </div>
@@ -105,6 +107,44 @@ export default async function Relatorios({ searchParams }: { searchParams: Promi
                 </tr>
               ))}
             </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="card p-5">
+        <h2 className="mb-1 flex flex-wrap items-center justify-between gap-2 text-sm font-semibold text-gold-soft">
+          Contratos finalizados no período <span className="text-xs font-normal text-ink-soft">{finalizados.length} contrato(s) · terminaram entre {dateBR(periodo.inicio)} e {dateBR(periodo.fim)}</span>
+        </h2>
+        <p className="mb-3 text-xs text-ink-faint">Mostra os contratos cujo fim já passou. Os valores consideram as parcelas que estão no sistema (as da gestão anterior, retiradas, não entram).</p>
+        <div className="table-wrap">
+          <table className="table">
+            <thead><tr><th>Nº</th><th>Cliente</th><th>Pontos</th><th>Período</th><th>Contratado</th><th>Recebido</th><th>Em aberto</th><th>Situação</th></tr></thead>
+            <tbody>
+              {finalizados.length === 0 && <tr><td colSpan={8} className="text-ink-soft">Nenhum contrato terminou neste período.</td></tr>}
+              {finalizados.map((c) => (
+                <tr key={c.id}>
+                  <td><Link className="font-medium text-gold" href={`/contratos/${c.id}`}>{c.numero}</Link></td>
+                  <td className="font-medium">{c.cliente}</td>
+                  <td className="text-xs">{c.pontos.join(", ")}</td>
+                  <td className="whitespace-nowrap">{dateBR(c.inicio)}<span className="block text-xs text-ink-faint">até {dateBR(c.fim)}</span></td>
+                  <td className="tabular-nums">{money(c.total)}</td>
+                  <td className="tabular-nums text-good">{money(c.recebido)}</td>
+                  <td className={`tabular-nums ${c.emAberto > 0 ? "font-semibold text-danger" : ""}`}>{money(c.emAberto)}</td>
+                  <td>{c.emAberto > 0 ? <span className="badge text-danger">Com saldo</span> : <span className="badge text-good">Quitado</span>}{c.status === "ENCERRADO" && <span className="ml-1 text-xs text-ink-faint">encerrado</span>}</td>
+                </tr>
+              ))}
+            </tbody>
+            {finalizados.length > 0 && (
+              <tfoot>
+                <tr>
+                  <td colSpan={4} className="font-semibold text-gold">Total</td>
+                  <td className="font-semibold tabular-nums">{money(somaFin.total)}</td>
+                  <td className="font-semibold tabular-nums text-good">{money(somaFin.recebido)}</td>
+                  <td className="font-semibold tabular-nums text-danger">{money(somaFin.emAberto)}</td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
       </section>

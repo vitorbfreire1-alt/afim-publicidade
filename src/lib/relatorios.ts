@@ -82,3 +82,43 @@ export async function relatorioFinanceiro({ inicio, fim }: Periodo) {
     inadimplencia: [...inad.values()].sort((a, b) => b.atualizado - a.atualizado),
   };
 }
+
+export interface ContratoFinalizado {
+  id: string;
+  numero: number;
+  cliente: string;
+  pontos: string[];
+  inicio: Date;
+  fim: Date;
+  status: string;
+  formaPagamento: string;
+  total: number;
+  recebido: number;
+  emAberto: number;
+}
+
+/** Contratos que já terminaram (fim anterior a hoje) com o fim dentro do período, do mais recente para o mais antigo. */
+export async function contratosFinalizados({ inicio, fim }: Periodo): Promise<ContratoFinalizado[]> {
+  const h = hoje();
+  const lista = await prisma.contrato.findMany({
+    where: { status: { not: "CANCELADO" }, fim: { gte: inicio, lte: fim < h ? fim : new Date(h.getTime() - 86_400_000) } },
+    orderBy: { fim: "desc" },
+    include: { cliente: true, pontos: { include: { ponto: true } }, parcelas: true },
+  });
+  return lista.map((c) => {
+    const normais = c.parcelas.filter((p) => !p.renegociadaEm);
+    return {
+      id: c.id,
+      numero: c.numero,
+      cliente: c.cliente.nome,
+      pontos: c.pontos.map((cp) => cp.ponto.nome),
+      inicio: c.inicio,
+      fim: c.fim,
+      status: c.status,
+      formaPagamento: c.formaPagamento,
+      total: normais.reduce((s, p) => s + Number(p.valor), 0),
+      recebido: normais.reduce((s, p) => s + Number(p.valorPago ?? 0), 0),
+      emAberto: normais.filter((p) => !p.pagoEm).reduce((s, p) => s + Number(p.valor), 0),
+    };
+  });
+}

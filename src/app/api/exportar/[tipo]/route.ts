@@ -6,7 +6,7 @@ import { statusParcela } from "@/lib/financeiro";
 import { hoje } from "@/lib/format";
 import { CATEGORIA_LABEL, FORMA_LABEL, STATUS_CONTRATO_LABEL, TIPO_SINGULAR } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
-import { periodoDe } from "@/lib/relatorios";
+import { contratosFinalizados, periodoDe } from "@/lib/relatorios";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +35,10 @@ export async function GET(req: Request, { params }: { params: Promise<{ tipo: st
     linhas = r.flatMap((c) =>
       c.pontos.map((cp) => [c.numero, c.cliente.nome, cp.ponto.nome, TIPO_SINGULAR[cp.ponto.tipo], num(cp.valor), cp.inicio, cp.prazoMeses, cp.fim, c.diaVencimento, FORMA_LABEL[c.formaPagamento], STATUS_CONTRATO_LABEL[c.status], c.vendedor?.nome]),
     );
+  } else if (tipo === "finalizados" && pode(user, "carteira", "valores")) {
+    const r = await contratosFinalizados({ inicio, fim });
+    cab = ["Nº", "Cliente", "Pontos", "Início", "Fim", "Forma de pagamento", "Status", "Contratado", "Recebido", "Em aberto", "Situação"];
+    linhas = r.map((c) => [c.numero, c.cliente, c.pontos.join(", "), c.inicio, c.fim, FORMA_LABEL[c.formaPagamento as keyof typeof FORMA_LABEL], STATUS_CONTRATO_LABEL[c.status as keyof typeof STATUS_CONTRATO_LABEL], c.total, c.recebido, c.emAberto, c.emAberto > 0 ? "Com saldo" : "Quitado"]);
   } else if (tipo === "parcelas" && pode(user, "receber")) {
     const regras = regrasDe(await getConfig());
     const r = await prisma.parcela.findMany({
