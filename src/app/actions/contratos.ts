@@ -511,3 +511,17 @@ export async function alterarReservaPonto(contratoId: string, pontoId: string, f
   revalidatePath("/", "layout");
   volta("ok", `${cp!.ponto.nome}: o contrato agora ocupa ${resumo}.`);
 }
+
+/** Encerra de uma vez os contratos ativos que já terminaram e não têm nenhuma parcela em aberto. */
+export async function encerrarFinalizados() {
+  const user = await requireUser("editar");
+  const alvo = await prisma.contrato.findMany({
+    where: { status: "ATIVO", fim: { lt: hoje() }, parcelas: { none: { pagoEm: null, renegociadaEm: null } } },
+    select: { id: true, numero: true },
+  });
+  if (!alvo.length) redirect(msg("/carteira", "erro", "Não há contratos finalizados e quitados para encerrar."));
+  await prisma.contrato.updateMany({ where: { id: { in: alvo.map((c) => c.id) } }, data: { status: "ENCERRADO" } });
+  await registrar(user, "encerrou finalizados", "Contrato", null, `${alvo.length} contrato(s): ${alvo.map((c) => `#${c.numero}`).join(", ")}`);
+  revalidatePath("/", "layout");
+  redirect(msg("/carteira", "ok", `${alvo.length} contrato(s) finalizado(s) e quitado(s) foram encerrados.`));
+}

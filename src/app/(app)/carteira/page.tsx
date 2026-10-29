@@ -1,6 +1,9 @@
 import Link from "next/link";
 import AbrirLink from "@/components/AbrirLink";
+import ConfirmButton from "@/components/ConfirmButton";
+import Flash from "@/components/Flash";
 import SeloVencimento from "@/components/SeloVencimento";
+import { encerrarFinalizados } from "@/app/actions/contratos";
 import { pode, requireUser } from "@/lib/auth";
 import { atrasoDoPonto, statusParcela } from "@/lib/financeiro";
 import { dateBR, hoje, money } from "@/lib/format";
@@ -11,7 +14,7 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Carteira de clientes" };
 
 /** Reproduz as abas da planilha: uma carteira por tipo de mídia; cada linha é um ponto de um contrato. */
-export default async function Carteira({ searchParams }: { searchParams: Promise<{ tipo?: string }> }) {
+export default async function Carteira({ searchParams }: { searchParams: Promise<{ tipo?: string; finalizados?: string; erro?: string; ok?: string }> }) {
   const [user, sp] = await Promise.all([requireUser("carteira"), searchParams]);
   const tipo = isTipo(sp.tipo) ? sp.tipo : "LED";
   const h = hoje();
@@ -26,7 +29,15 @@ export default async function Carteira({ searchParams }: { searchParams: Promise
     },
   });
 
-  const linhas = itens.map((cp) => {
+  // Finalizado: o ponto já terminou e o contrato não tem nenhuma parcela em aberto (tudo quitado).
+  const finalizado = (cp: (typeof itens)[number]) => cp.fim < h && !cp.contrato.parcelas.some((p) => !p.pagoEm && !p.renegociadaEm);
+  const mostrarFinalizados = sp.finalizados === "1";
+  const qtdFinalizados = itens.filter(finalizado).length;
+  const visiveis = mostrarFinalizados ? itens : itens.filter((cp) => !finalizado(cp));
+  // Contratos inteiros que já terminaram e estão quitados (em qualquer carteira): podem ser encerrados de uma vez.
+  const paraEncerrar = await prisma.contrato.count({ where: { status: "ATIVO", fim: { lt: h }, parcelas: { none: { pagoEm: null, renegociadaEm: null } } } });
+
+  const linhas = visiveis.map((cp) => {
     const c = cp.contrato;
     const abertas = c.parcelas.filter((p) => !p.pagoEm && !p.renegociadaEm);
     const atrasadas = abertas.filter((p) => statusParcela(p, h) === "ATRASADA");
@@ -49,18 +60,36 @@ export default async function Carteira({ searchParams }: { searchParams: Promise
 
   return (
     <main>
-      <div className="mb-4 flex items-center justify-between gap-3">
+      <Flash erro={sp.erro} ok={sp.ok} />
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-bold">Carteira de clientes</h1>
-        {pode(user, "editar", "valores") && (
-          <Link className="btn btn-gold" href="/contratos/novo">+ Novo contrato</Link>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          {pode(user, "editar") && paraEncerrar > 0 && (
+            <form action={encerrarFinalizados}>
+              <ConfirmButton className="btn btn-sm" mensagem={`Encerrar ${paraEncerrar} contrato(s) que já terminaram e estão quitados? Eles saem da carteira (continuam no histórico do cliente).`}>
+                Encerrar contratos finalizados ({paraEncerrar})
+              </ConfirmButton>
+            </form>
+          )}
+          {pode(user, "editar", "valores") && (
+            <Link className="btn btn-gold" href="/contratos/novo">+ Novo contrato</Link>
+          )}
+        </div>
       </div>
       <div className="mb-4 flex gap-2 overflow-x-auto">
         {TIPOS.map((t) => (
-          <Link key={t} href={`/carteira?tipo=${t}`} className={`btn btn-sm whitespace-nowrap ${t === tipo ? "btn-gold" : ""}`}>
+          <Link key={t} href={`/carteira?tipo=${t}${mostrarFinalizados ? "&finalizados=1" : ""}`} className={`btn btn-sm whitespace-nowrap ${t === tipo ? "btn-gold" : ""}`}>
             {TIPO_LABEL[t]}
           </Link>
         ))}
+        {qtdFinalizados > 0 && (
+          <Link
+            href={`/carteira?tipo=${tipo}${mostrarFinalizados ? "" : "&finalizados=1"}`}
+            className={`btn btn-sm ml-auto whitespace-nowrap ${mostrarFinalizados ? "btn-gold" : ""}`}
+          >
+            {mostrarFinalizados ? "Ocultar finalizados" : `Mostrar finalizados (${qtdFinalizados})`}
+          </Link>
+        )}
       </div>
 
       <div className="card table-wrap">
