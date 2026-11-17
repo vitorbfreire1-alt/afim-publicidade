@@ -11,7 +11,7 @@ import { janelaDeRenovacao, verificarCotas } from "@/lib/cotas";
 import { addMeses, agregarParcelas, calcularFim, gerarParcelas } from "@/lib/financeiro";
 import { data, inteiro, texto } from "@/lib/form";
 import { dateBR, hoje, money, parseMoney } from "@/lib/format";
-import { CUSTO_ITENS, CUSTO_LABEL, FORMAS_CONTRATO } from "@/lib/labels";
+import { CUSTO_ITENS, CUSTO_LABEL, FORMAS, FORMAS_CONTRATO } from "@/lib/labels";
 import { MAX_PRAZO, calcularPrazo, unidadeDe } from "@/lib/prazo";
 import { prisma } from "@/lib/prisma";
 
@@ -281,7 +281,7 @@ export async function editarContrato(id: string, fd: FormData) {
   const contrato = await prisma.contrato.findUnique({ where: { id }, include: { parcelas: true } });
   if (!contrato) volta("Contrato não encontrado.");
   if ((forma === "PERMUTA") !== (contrato!.formaPagamento === "PERMUTA")) {
-    volta("Não dá para trocar entre permuta e pagamento em dinheiro num contrato já criado. Encerre este e crie um novo.");
+    volta("Para mudar entre permuta e pagamento em dinheiro, use o botão Marcar como permuta (ou Voltar para pagamento em dinheiro) em Editar contrato → Dados do contrato.");
   }
 
   await prisma.$transaction(async (tx) => {
@@ -524,4 +524,52 @@ export async function encerrarFinalizados() {
   await registrar(user, "encerrou finalizados", "Contrato", null, `${alvo.length} contrato(s): ${alvo.map((c) => `#${c.numero}`).join(", ")}`);
   revalidatePath("/", "layout");
   redirect(msg("/carteira", "ok", `${alvo.length} contrato(s) finalizado(s) e quitado(s) foram encerrados.`));
+}
+
+/**
+ * Converte um contrato em permuta: o cliente passa a "pagar" com troca, sem parcelas a receber.
+ * As parcelas em aberto (não pagas, fora de acordo) saem; as já recebidas ficam como histórico.
+ */
+export async function marcarComoPermuta(contratoId: string, fd: FormData) {
+  const user = await requireUser("editar", "valores");
+  const volta = (tipo: "erro" | "ok", t: string) => redirect(msg(`/contratos/${contratoId}`, tipo, t));
+  const contrato = await prisma.contrato.findUnique({ where: { id: contratoId }, include: { parcelas: true } });
+  if (!contrato) volta("erro", "Contrato não encontrado.");
+  if (contrato!.formaPagamento === "PERMUTA") volta("erro", "Este contrato já é permuta.");
+  if (contrato!.parcelas.some((p) => p.acordoId)) volta("erro", "Este contrato tem acordo de dívida; resolva o acordo antes de converter em permuta.");
+
+  const abertas = contrato!.parcelas.filter((p) => !p.pagoEm && !p.renegociadaEm);
+  await prisma.$transaction(async (tx) => {
+    await tx.parcela.deleteMany({ where: { id: { in: abertas.map((p) => p.id) } } });
+    await renumerarParcelas(tx, contratoId);
+    await tx.contrato.update({ where: { id: contratoId }, data: { formaPagamento: "PERMUTA", permutaDescricao: texto(fd, "permutaDescricao"), comissaoPct: null } });
+  });
+  await registrar(user, "marcou como permuta", "Contrato", contratoId, `${abertas.length} parcela(s) em aberto retirada(s)`);
+  revalidatePath("/", "layout");
+  volta("ok", `Contrato marcado como permuta. ${abertas.length} parcela(s) em aberto foram retiradas.`);
+}
+
+/** Volta uma permuta para pagamento em dinheiro, gerando as parcelas a vencer a partir dos pontos do contrato. */
+export async function desfazerPermuta(contratoId: string, fd: FormData) {
+  const user = await requireUser("editar", "valores");
+  const volta = (tipo: "erro" | "ok", t: string) => redirect(msg(`/contratos/${contratoId}`, tipo, t));
+  const forma = String(fd.get("formaPagamento") ?? "") as FormaPagamento;
+  if (!FORMAS.includes(forma)) volta("erro", "Escolha a forma de pagamento.");
+  const contrato = await prisma.contrato.findUnique({ where: { id: contratoId }, include: { pontos: true, parcelas: true } });
+  if (!contrato) volta("erro", "Contrato não encontrado.");
+  if (contrato!.formaPagamento !== "PERMUTA") volta("erro", "Este contrato não é permuta.");
+
+  const h = hoje();
+  const novas = agregarParcelas(
+    contrato!.pontos.map((cp) => ({ valor: Number(cp.valor), inicio: cp.inicio, prazoMeses: cp.prazoMeses })),
+    contrato!.diaVencimento,
+  ).filter((p) => p.vencimento >= h);
+  await prisma.$transaction(async (tx) => {
+    await tx.contrato.update({ where: { id: contratoId }, data: { formaPagamento: forma, permutaDescricao: null } });
+    for (const n of novas) await tx.parcela.create({ data: { contratoId, numero: 2_000_000 + n.numero, vencimento: n.vencimento, valor: n.valor } });
+    await renumerarParcelas(tx, contratoId);
+  });
+  await registrar(user, "desfez permuta", "Contrato", contratoId, `${novas.length} parcela(s) geradas`);
+  revalidatePath("/", "layout");
+  volta("ok", `Contrato voltou a pagamento em dinheiro, com ${novas.length} parcela(s) a vencer. Confira os valores dos pontos.`);
 }

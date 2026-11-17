@@ -10,7 +10,7 @@ import Flash from "@/components/Flash";
 import MaskedInput from "@/components/MaskedInput";
 import ReceberParcela from "@/components/ReceberParcela";
 import StatusBadge from "@/components/StatusBadge";
-import { adicionarPonto, alterarValorPonto, alterarDatasPonto, alterarReservaPonto, aplicarReajuste, comecarControleEm, editarContrato, editarParcela, encerrarPonto, mudarStatusContrato, renovarPonto, trocarPonto } from "@/app/actions/contratos";
+import { adicionarPonto, alterarValorPonto, alterarDatasPonto, alterarReservaPonto, aplicarReajuste, comecarControleEm, desfazerPermuta, editarContrato, marcarComoPermuta, editarParcela, encerrarPonto, mudarStatusContrato, renovarPonto, trocarPonto } from "@/app/actions/contratos";
 import { adicionarParcela, cobrarProducao, dividirParcela, dividirParcelasDoContrato, excluirParcela, reparcelarContrato } from "@/app/actions/parcelas";
 import { desativarLinkPublico, gerarLinkPublico } from "@/app/actions/publico";
 import FormAcordo from "@/components/FormAcordo";
@@ -233,7 +233,7 @@ export default async function ContratoPage({ params, searchParams }: {
                                   <select className="input" id="formaPagamento" name="formaPagamento" defaultValue={c.formaPagamento}>
                                     {FORMAS_CONTRATO.map((f) => <option key={f} value={f}>{FORMA_ROTULO[f]}</option>)}
                                   </select>
-                                  <p className="mt-1 text-xs text-ink-faint">Não dá para trocar entre permuta e dinheiro depois de criado.</p>
+                                  <p className="mt-1 text-xs text-ink-faint">Para mudar entre permuta e dinheiro, use o botão logo abaixo (Marcar como permuta).</p>
                                 </div>
                                 {c.formaPagamento === "PERMUTA" && (
                                   <div>
@@ -263,6 +263,39 @@ export default async function ContratoPage({ params, searchParams }: {
                                 </div>
                                 <div className="sm:col-span-2"><button className="btn btn-gold" type="submit">Salvar alterações</button></div>
                               </form>
+                    <div className="mt-5 border-t border-line pt-4">
+                      {c.formaPagamento === "PERMUTA" ? (
+                        <form action={desfazerPermuta.bind(null, id)} className="grid gap-3 sm:grid-cols-2">
+                          <div className="sm:col-span-2">
+                            <p className="text-sm font-semibold text-gold-soft">Este contrato é permuta</p>
+                            <p className="mt-1 text-xs text-ink-soft">Se o cliente passou a pagar em dinheiro, escolha a forma de pagamento: as parcelas a vencer são geradas a partir dos valores dos pontos (confira o valor de cada ponto antes).</p>
+                          </div>
+                          <div>
+                            <label className="label" htmlFor="formaVolta">Forma de pagamento</label>
+                            <select className="input" id="formaVolta" name="formaPagamento" defaultValue="PIX">
+                              {FORMAS_CONTRATO.filter((f) => f !== "PERMUTA").map((f) => <option key={f} value={f}>{FORMA_ROTULO[f]}</option>)}
+                            </select>
+                          </div>
+                          <div className="flex items-end">
+                            <ConfirmButton className="btn btn-sm" mensagem="Voltar este contrato para pagamento em dinheiro? As parcelas a vencer serão geradas.">Voltar para pagamento em dinheiro</ConfirmButton>
+                          </div>
+                        </form>
+                      ) : (
+                        <form action={marcarComoPermuta.bind(null, id)} className="grid gap-3 sm:grid-cols-2">
+                          <div className="sm:col-span-2">
+                            <p className="text-sm font-semibold text-gold-soft">Marcar como permuta</p>
+                            <p className="mt-1 text-xs text-ink-soft">Use quando o cliente não paga em dinheiro: ele troca por produto ou serviço. As parcelas em aberto saem do sistema (as já recebidas ficam), e o contrato passa a contar como permuta nos indicadores e no painel.</p>
+                          </div>
+                          <div className="sm:col-span-2">
+                            <label className="label" htmlFor="permutaDesc">O que o cliente troca (opcional)</label>
+                            <input className="input" id="permutaDesc" name="permutaDescricao" placeholder="Ex.: combustível para a frota" />
+                          </div>
+                          <div>
+                            <ConfirmButton className="btn btn-sm btn-gold" mensagem="Marcar este contrato como permuta? As parcelas em aberto serão retiradas.">Marcar como permuta</ConfirmButton>
+                          </div>
+                        </form>
+                      )}
+                    </div>
                   </>
                 ),
               },
