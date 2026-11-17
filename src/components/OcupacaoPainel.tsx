@@ -25,6 +25,9 @@ export default function OcupacaoPainel({ dados, verContratos, lista }: { dados: 
   const { geral, porTipo, clientesPagantes, clientesPermuta } = dados;
   const mostrados = lista === "pagam" ? clientesPagantes : lista === "permuta" ? clientesPermuta : [];
   const ocupadas = geral.clientes + geral.permuta;
+  // Quanto cada grupo representa das cotas ocupadas (os dois somam 100%) e da capacidade total.
+  const partePagam = ocupadas > 0 ? Math.round((geral.clientes / ocupadas) * 100) : 0;
+  const partePermuta = ocupadas > 0 ? 100 - partePagam : 0;
   return (
     <section className="mt-4 grid gap-4 lg:mt-5 lg:grid-cols-5">
       <div className="card rise p-5 lg:col-span-3 lg:p-6" style={{ ["--i" as string]: 5 }}>
@@ -74,6 +77,8 @@ export default function OcupacaoPainel({ dados, verContratos, lista }: { dados: 
             >
               <p className="font-display text-2xl font-bold text-gold-soft">{clientesPagantes.length}</p>
               <p className="text-xs text-ink-soft">cliente(s) que pagam</p>
+              <p className="mt-1.5 text-xs font-semibold text-gold-soft">{partePagam}% das ocupações</p>
+              <p className="text-[0.7rem] text-ink-faint">{pct(geral.clientes, geral.capacidade)}% da capacidade total</p>
             </Link>
             <Link
               href={lista === "permuta" ? "/#clientes-permutas" : "/?lista=permuta#clientes-permutas"}
@@ -83,6 +88,8 @@ export default function OcupacaoPainel({ dados, verContratos, lista }: { dados: 
             >
               <p className="font-display text-2xl font-bold text-good">{clientesPermuta.length}</p>
               <p className="text-xs text-ink-soft">cliente(s) em permuta</p>
+              <p className="mt-1.5 text-xs font-semibold text-good">{partePermuta}% das ocupações</p>
+              <p className="text-[0.7rem] text-ink-faint">{pct(geral.permuta, geral.capacidade)}% da capacidade total</p>
             </Link>
           </div>
           {lista === null ? (
