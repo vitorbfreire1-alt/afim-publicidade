@@ -15,13 +15,15 @@ export interface LinhaOcupacao {
   pontosOcupados: number;
 }
 
-export interface Permuta {
-  contratoId: string;
+/** Um cliente com contrato ativo hoje, com os pontos que ocupa (agrupado, uma linha por cliente). */
+export interface ClienteAtivo {
+  clienteId: string;
   cliente: string;
-  ponto: string;
-  tipo: TipoMidia;
-  descricao: string | null;
+  contratoId: string;
+  contratos: number;
+  pontos: { nome: string; tipo: TipoMidia }[];
   fim: Date;
+  descricao: string | null;
 }
 
 const vazia = (): LinhaOcupacao => ({ capacidade: 0, clientes: 0, permuta: 0, pontos: 0, pontosOcupados: 0 });
@@ -45,9 +47,19 @@ export async function ocupacaoDoDia() {
 
   const porTipo = new Map<TipoMidia, LinhaOcupacao>(TIPOS.map((t) => [t, vazia()]));
   const geral = vazia();
-  const clientesPagantes = new Set<string>();
-  const clientesPermuta = new Set<string>();
-  const permutas: Permuta[] = [];
+  const pagantes = new Map<string, ClienteAtivo>();
+  const permutas = new Map<string, ClienteAtivo>();
+  const registrar = (mapa: Map<string, ClienteAtivo>, c: (typeof pontos)[number]["contratos"][number], p: (typeof pontos)[number]) => {
+    const atual = mapa.get(c.contrato.clienteId);
+    if (!atual) {
+      mapa.set(c.contrato.clienteId, { clienteId: c.contrato.clienteId, cliente: c.contrato.cliente.nome, contratoId: c.contrato.id, contratos: 1, pontos: [{ nome: p.nome, tipo: p.tipo }], fim: c.fim, descricao: c.contrato.permutaDescricao });
+      return;
+    }
+    if (atual.contratoId !== c.contrato.id) atual.contratos += 1;
+    atual.pontos.push({ nome: p.nome, tipo: p.tipo });
+    if (c.fim > atual.fim) atual.fim = c.fim;
+    if (!atual.descricao && c.contrato.permutaDescricao) atual.descricao = c.contrato.permutaDescricao;
+  };
 
   for (const p of pontos) {
     const capacidade = p.cotas ?? 1;
@@ -57,11 +69,10 @@ export async function ocupacaoDoDia() {
       const peso = p.cotas ? pesoNoPonto(c, p.cotas) : 1;
       if (c.contrato.formaPagamento === "PERMUTA") {
         permuta += peso;
-        clientesPermuta.add(c.contrato.clienteId);
-        permutas.push({ contratoId: c.contrato.id, cliente: c.contrato.cliente.nome, ponto: p.nome, tipo: p.tipo, descricao: c.contrato.permutaDescricao, fim: c.fim });
+        registrar(permutas, c, p);
       } else {
         clientes += peso;
-        clientesPagantes.add(c.contrato.clienteId);
+        registrar(pagantes, c, p);
       }
     }
     // Nunca passa da capacidade do ponto; em caso de excesso, quem paga tem prioridade (sempre números inteiros).
@@ -80,8 +91,7 @@ export async function ocupacaoDoDia() {
   return {
     geral,
     porTipo: TIPOS.map((t) => ({ tipo: t, ...porTipo.get(t)! })).filter((l) => l.pontos > 0),
-    clientesPagantes: clientesPagantes.size,
-    clientesPermuta: clientesPermuta.size,
-    permutas: permutas.sort((a, b) => a.cliente.localeCompare(b.cliente)),
+    clientesPagantes: [...pagantes.values()].sort((a, b) => a.cliente.localeCompare(b.cliente)),
+    clientesPermuta: [...permutas.values()].sort((a, b) => a.cliente.localeCompare(b.cliente)),
   };
 }

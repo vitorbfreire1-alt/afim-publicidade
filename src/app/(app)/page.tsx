@@ -61,8 +61,8 @@ function Lista({ i, titulo, icone: Icone, cor, vazio, children }: {
   );
 }
 
-export default async function Painel({ searchParams }: { searchParams: Promise<{ erro?: string; ok?: string }> }) {
-  const [user, { erro, ok }] = await Promise.all([requireUser(), searchParams]);
+export default async function Painel({ searchParams }: { searchParams: Promise<{ erro?: string; ok?: string; lista?: string }> }) {
+  const [user, { erro, ok, lista }] = await Promise.all([requireUser(), searchParams]);
   const [r, a, fluxo, meta] = await Promise.all([resumoFinanceiro(), alertas(), fluxoMensal(), prisma.meta.findUnique({ where: { mes: chaveDoMes(hoje()) } })]);
   const h = hoje();
   const vCarteira0 = pode(user, "carteira");
@@ -113,7 +113,7 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
         {vPontos && <Kpi i={6} icone={Gauge} label="Pontos com clientes" value={`${ocupacao}%`} sub={`${r.pontosOcupados} de ${r.pontosTotal} com contrato ativo`} />}
       </section>
 
-      {ocup && <OcupacaoPainel dados={ocup} verContratos={vCarteira0} />}
+      {ocup && <OcupacaoPainel dados={ocup} verContratos={vCarteira0} lista={lista === "pagam" || lista === "permuta" ? lista : null} />}
 
       {vMetas && meta && (
         <Link href="/indicadores" className="card rise mt-4 block p-5 lg:mt-5" style={{ ["--i" as string]: 5 }}>

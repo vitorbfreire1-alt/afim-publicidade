@@ -21,8 +21,9 @@ function Barra({ clientes, permuta, capacidade, alto = "h-2.5" }: { clientes: nu
 }
 
 /** Painel: taxa de ocupação (geral e por tipo de mídia) e a separação entre clientes que pagam e permutas. */
-export default function OcupacaoPainel({ dados, verContratos }: { dados: Dados; verContratos: boolean }) {
-  const { geral, porTipo, clientesPagantes, clientesPermuta, permutas } = dados;
+export default function OcupacaoPainel({ dados, verContratos, lista }: { dados: Dados; verContratos: boolean; lista: "pagam" | "permuta" | null }) {
+  const { geral, porTipo, clientesPagantes, clientesPermuta } = dados;
+  const mostrados = lista === "pagam" ? clientesPagantes : lista === "permuta" ? clientesPermuta : [];
   const ocupadas = geral.clientes + geral.permuta;
   return (
     <section className="mt-4 grid gap-4 lg:mt-5 lg:grid-cols-5">
@@ -62,30 +63,53 @@ export default function OcupacaoPainel({ dados, verContratos }: { dados: Dados; 
       </div>
 
       {verContratos && (
-        <div className="card rise p-5 lg:col-span-2 lg:p-6" style={{ ["--i" as string]: 6 }}>
+        <div id="clientes-permutas" className="card rise p-5 lg:col-span-2 lg:p-6" style={{ ["--i" as string]: 6 }}>
           <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-gold-soft"><Repeat className="size-4" /> Clientes e permutas</h2>
           <div className="mb-4 grid grid-cols-2 gap-3">
-            <div className="rounded-xl border border-gold/30 bg-gold/10 p-3">
-              <p className="font-display text-2xl font-bold text-gold-soft">{clientesPagantes}</p>
+            <Link
+              href={lista === "pagam" ? "/#clientes-permutas" : "/?lista=pagam#clientes-permutas"}
+              scroll={false}
+              aria-pressed={lista === "pagam"}
+              className={`rounded-xl border p-3 transition hover:brightness-125 ${lista === "pagam" ? "border-gold bg-gold/20 ring-1 ring-gold" : "border-gold/30 bg-gold/10"}`}
+            >
+              <p className="font-display text-2xl font-bold text-gold-soft">{clientesPagantes.length}</p>
               <p className="text-xs text-ink-soft">cliente(s) que pagam</p>
-            </div>
-            <div className="rounded-xl border border-good/30 bg-good/10 p-3">
-              <p className="font-display text-2xl font-bold text-good">{clientesPermuta}</p>
+            </Link>
+            <Link
+              href={lista === "permuta" ? "/#clientes-permutas" : "/?lista=permuta#clientes-permutas"}
+              scroll={false}
+              aria-pressed={lista === "permuta"}
+              className={`rounded-xl border p-3 transition hover:brightness-125 ${lista === "permuta" ? "border-good bg-good/20 ring-1 ring-good" : "border-good/30 bg-good/10"}`}
+            >
+              <p className="font-display text-2xl font-bold text-good">{clientesPermuta.length}</p>
               <p className="text-xs text-ink-soft">cliente(s) em permuta</p>
-            </div>
+            </Link>
           </div>
-          {permutas.length === 0 ? (
-            <p className="text-sm text-ink-soft">Nenhuma permuta ativa hoje.</p>
+          {lista === null ? (
+            <p className="text-sm text-ink-soft">Toque em um dos quadros acima para ver a lista de clientes que pagam ou de permutas.</p>
           ) : (
-            <ul className="divide-y divide-white/5 text-sm">
-              {permutas.map((p, i) => (
-                <li key={`${p.contratoId}-${i}`} className="py-2">
-                  <Link href={`/contratos/${p.contratoId}`} className="font-medium hover:text-gold-soft">{p.cliente}</Link>
-                  <span className="block text-xs text-ink-soft">{p.ponto} · {TIPO_LABEL[p.tipo]} · até {dateBR(p.fim)}</span>
-                  {p.descricao && <span className="block text-xs text-ink-faint">Troca: {p.descricao}</span>}
-                </li>
-              ))}
-            </ul>
+            <>
+              <p className="mb-2 flex items-center justify-between text-xs text-ink-faint">
+                <span>{lista === "pagam" ? "Clientes que pagam" : "Clientes em permuta"} · {mostrados.length}</span>
+                <Link href="/#clientes-permutas" scroll={false} className="text-gold hover:underline">Limpar filtro</Link>
+              </p>
+              {mostrados.length === 0 ? (
+                <p className="text-sm text-ink-soft">{lista === "pagam" ? "Nenhum cliente com contrato pago ativo hoje." : "Nenhuma permuta ativa hoje."}</p>
+              ) : (
+                <ul className="max-h-96 divide-y divide-white/5 overflow-y-auto pr-1 text-sm">
+                  {mostrados.map((c) => (
+                    <li key={c.clienteId} className="py-2">
+                      <Link href={`/contratos/${c.contratoId}`} className="font-medium hover:text-gold-soft">{c.cliente}</Link>
+                      <span className="block text-xs text-ink-soft">
+                        {c.pontos.length} ponto(s){c.contratos > 1 && ` · ${c.contratos} contratos`} · até {dateBR(c.fim)}
+                      </span>
+                      <span className="block text-xs text-ink-faint">{c.pontos.slice(0, 4).map((p) => p.nome).join(", ")}{c.pontos.length > 4 && ` e mais ${c.pontos.length - 4}`}</span>
+                      {lista === "permuta" && c.descricao && <span className="block text-xs text-ink-faint">Troca: {c.descricao}</span>}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
           )}
         </div>
       )}
