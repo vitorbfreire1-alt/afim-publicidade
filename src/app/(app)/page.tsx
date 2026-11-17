@@ -3,10 +3,12 @@ import { CalendarClock, Percent, Wrench, CircleDollarSign, FileText, Gauge, Rece
 import Flash from "@/components/Flash";
 import BannerVencimentos from "@/components/BannerVencimentos";
 import FluxoMensal from "@/components/FluxoMensal";
+import OcupacaoPainel from "@/components/OcupacaoPainel";
 import { pode, requireUser } from "@/lib/auth";
 import { alertas, fluxoMensal, resumoFinanceiro } from "@/lib/financeiro";
 import { chaveDoMes } from "@/lib/indicadores";
 import { prisma } from "@/lib/prisma";
+import { ocupacaoDoDia } from "@/lib/ocupacao";
 import { LIMITES, diasRestantes } from "@/lib/vencimento";
 import { addDias, dateBR, diasEntre, hoje, money } from "@/lib/format";
 
@@ -74,6 +76,7 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
     const doGrupo = vencendo.filter((x) => diasRestantes(x.fim, h) <= ate);
     return { ate, quantidade: doGrupo.length, valor: doGrupo.filter((x) => x.contrato.formaPagamento !== "PERMUTA").reduce((s, x) => s + Number(x.valor), 0) };
   });
+  const ocup = pode(user, "pontos") ? await ocupacaoDoDia() : null;
   const vReceber = pode(user, "receber");
   const vDespesas = pode(user, "despesas");
   const vMetas = pode(user, "metas");
@@ -109,6 +112,8 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
         {vCarteira && <Kpi i={5} icone={FileText} label="Contratos ativos" value={String(r.contratosAtivos)} />}
         {vPontos && <Kpi i={6} icone={Gauge} label="Pontos com clientes" value={`${ocupacao}%`} sub={`${r.pontosOcupados} de ${r.pontosTotal} com contrato ativo`} />}
       </section>
+
+      {ocup && <OcupacaoPainel dados={ocup} verContratos={vCarteira0} />}
 
       {vMetas && meta && (
         <Link href="/indicadores" className="card rise mt-4 block p-5 lg:mt-5" style={{ ["--i" as string]: 5 }}>
