@@ -8,7 +8,7 @@ import { pode, requireUser } from "@/lib/auth";
 import { alertas, fluxoMensal, resumoFinanceiro } from "@/lib/financeiro";
 import { chaveDoMes } from "@/lib/indicadores";
 import { prisma } from "@/lib/prisma";
-import { ocupacaoDoDia } from "@/lib/ocupacao";
+import { carregarOcupacao, percentuais } from "@/lib/ocupacao";
 import { LIMITES, diasRestantes } from "@/lib/vencimento";
 import { addDias, dateBR, diasEntre, hoje, money } from "@/lib/format";
 
@@ -61,8 +61,8 @@ function Lista({ i, titulo, icone: Icone, cor, vazio, children }: {
   );
 }
 
-export default async function Painel({ searchParams }: { searchParams: Promise<{ erro?: string; ok?: string; lista?: string }> }) {
-  const [user, { erro, ok, lista }] = await Promise.all([requireUser(), searchParams]);
+export default async function Painel({ searchParams }: { searchParams: Promise<{ erro?: string; ok?: string; lista?: string; mes?: string }> }) {
+  const [user, { erro, ok, lista, mes }] = await Promise.all([requireUser(), searchParams]);
   const [r, a, fluxo, meta] = await Promise.all([resumoFinanceiro(), alertas(), fluxoMensal(), prisma.meta.findUnique({ where: { mes: chaveDoMes(hoje()) } })]);
   const h = hoje();
   const vCarteira0 = pode(user, "carteira");
@@ -76,7 +76,26 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
     const doGrupo = vencendo.filter((x) => diasRestantes(x.fim, h) <= ate);
     return { ate, quantidade: doGrupo.length, valor: doGrupo.filter((x) => x.contrato.formaPagamento !== "PERMUTA").reduce((s, x) => s + Number(x.valor), 0) };
   });
-  const ocup = pode(user, "pontos") ? await ocupacaoDoDia() : null;
+  // Ocupação de hoje ou de um mês futuro (até 11 meses à frente), só com os contratos já cadastrados.
+  const hojeOc = hoje();
+  const meses = Array.from({ length: 12 }, (_, i) => {
+    const d = new Date(Date.UTC(hojeOc.getUTCFullYear(), hojeOc.getUTCMonth() + i, 1));
+    return {
+      chave: `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`,
+      rotulo: new Intl.DateTimeFormat("pt-BR", { month: "short", year: "2-digit", timeZone: "UTC" }).format(d).replace(".", "").replace(" de ", "/"),
+      atual: i === 0,
+      ref: i === 0 ? hojeOc : d,
+    };
+  });
+  const mesEscolhido = meses.find((m) => !m.atual && m.chave === mes) ?? null;
+  const carga = pode(user, "pontos") ? await carregarOcupacao() : null;
+  const ocup = carga ? carga.calcular(mesEscolhido ? mesEscolhido.ref : hojeOc) : null;
+  const previsao = carga
+    ? meses.map((m) => {
+        const pc = percentuais(carga.calcular(m.ref).geral);
+        return { chave: m.chave, rotulo: m.rotulo, atual: m.atual, clientes: pc.clientes, permuta: pc.permuta, livre: pc.livre };
+      })
+    : [];
   const vReceber = pode(user, "receber");
   const vDespesas = pode(user, "despesas");
   const vMetas = pode(user, "metas");
@@ -113,7 +132,7 @@ export default async function Painel({ searchParams }: { searchParams: Promise<{
         {vPontos && <Kpi i={6} icone={Gauge} label="Pontos com clientes" value={`${ocupacao}%`} sub={`${r.pontosOcupados} de ${r.pontosTotal} com contrato ativo`} />}
       </section>
 
-      {ocup && <OcupacaoPainel dados={ocup} verContratos={vCarteira0} lista={lista === "pagam" || lista === "permuta" ? lista : null} />}
+      {ocup && <OcupacaoPainel dados={ocup} previsao={previsao} mesSelecionado={mesEscolhido ? mesEscolhido.chave : null} verContratos={vCarteira0} lista={lista === "pagam" || lista === "permuta" ? lista : null} />}
 
       {vMetas && meta && (
         <Link href="/indicadores" className="card rise mt-4 block p-5 lg:mt-5" style={{ ["--i" as string]: 5 }}>
