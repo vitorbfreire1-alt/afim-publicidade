@@ -58,6 +58,10 @@ export default async function Pontos({ searchParams }: { searchParams: Promise<{
           <tbody>
             {pontos.length === 0 && <tr><td colSpan={5} className="text-ink-soft">Nenhum ponto cadastrado.</td></tr>}
             {pontos.map((p) => {
+              // Só os contratos dentro do período hoje (os mesmos que a barra de ocupação conta).
+              const vigentes = p.contratos.filter((c) => c.inicio <= h && h <= c.fim);
+              const terminados = p.contratos.filter((c) => c.fim < h).length;
+              const agendados = p.contratos.filter((c) => c.inicio > h).length;
               return (
                 <tr key={p.id} className={p.ativo ? "" : "opacity-50"}>
                   <td><Link className="font-medium hover:text-gold" href={`/pontos/${p.id}`}>{p.nome}</Link></td>
@@ -66,16 +70,21 @@ export default async function Pontos({ searchParams }: { searchParams: Promise<{
                     {p.cotas ? <Ocupacao ocupadas={ocupadasEm(p.contratos, p.cotas, h)} cotas={p.cotas} /> : <span className="text-ink-faint">Sem limite</span>}
                   </td>
                   <td>
-                    {!p.ativo ? "Desativado" : p.contratos.length === 0 ? (
+                    {!p.ativo ? "Desativado" : vigentes.length === 0 ? (
                       <span className="text-good">Sem clientes</span>
                     ) : (
                       <ul className="space-y-0.5">
-                        {p.contratos.map(({ contrato: c, ocupaTudo, cotasUsadas }) => (
+                        {vigentes.map(({ contrato: c, ocupaTudo, cotasUsadas }) => (
                           <li key={c.id}>
                             <Link className="text-warn hover:underline" href={`/contratos/${c.id}`}>{c.cliente.nome}</Link>{(ocupaTudo || cotasUsadas > 1) && <span className="ml-1 text-xs text-ink-faint">· {ocupaTudo ? "ponto inteiro" : `${cotasUsadas} cotas`}</span>}
                           </li>
                         ))}
                       </ul>
+                    )}
+                    {p.ativo && (terminados > 0 || agendados > 0) && (
+                      <p className="mt-1 text-xs text-ink-faint">
+                        {terminados > 0 && `${terminados} já terminou(aram)`}{terminados > 0 && agendados > 0 && " · "}{agendados > 0 && `${agendados} ainda não começou(aram)`}
+                      </p>
                     )}
                   </td>
                   <td className="col-acao"><AbrirLink href={`/pontos/${p.id}`} rotulo={`Abrir o ponto ${p.nome}`} /></td>
