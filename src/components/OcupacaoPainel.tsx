@@ -76,10 +76,11 @@ export default function OcupacaoPainel({ dados, previsao, mesSelecionado, verCon
           {futuro && <p className="mt-1 text-xs text-warn">Considera só os contratos já cadastrados; renovações e contratos novos ainda não lançados não entram.</p>}
         </div>
 
-        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
           <Numero rotulo="Pagando" valor={`${g.clientes}%`} sub={`${num(geral.clientes)} cota(s)`} cor="text-gold-soft" />
           <Numero rotulo="Permuta" valor={`${g.permuta}%`} sub={`${num(geral.permuta)} cota(s)`} cor="text-good" />
-          <Numero className="col-span-2 sm:col-span-1" rotulo="Ociosidade real" valor={`${g.livre}%`} sub={`${num(Math.max(0, geral.capacidade - ocupadas))} cota(s) livres, sem contar permuta`} cor="text-warn" />
+          <Numero rotulo="Ociosa (livre)" valor={`${g.livre}%`} sub={`${num(Math.max(0, geral.capacidade - ocupadas))} cota(s)`} cor="text-ink" />
+          <Numero rotulo="Ociosidade real" valor={`${g.potencial}%`} sub="excluindo permuta" cor="text-warn" />
         </div>
         <div className="mt-4">
           <Barra clientes={geral.clientes} permuta={geral.permuta} capacidade={geral.capacidade} alto="h-3.5" />
@@ -103,7 +104,7 @@ export default function OcupacaoPainel({ dados, previsao, mesSelecionado, verCon
                   </span>
                 </div>
                 <Barra clientes={l.clientes} permuta={l.permuta} capacidade={l.capacidade} />
-                <p className="mt-1 text-xs text-ink-faint">pagando {p.clientes}% · permuta {p.permuta}% · ociosidade real <span className="text-warn">{p.livre}%</span></p>
+                <p className="mt-1 text-xs text-ink-faint">pagando {p.clientes}% · permuta {p.permuta}% · ociosa {p.livre}% · ociosidade real <span className="text-warn">{p.potencial}%</span></p>
               </li>
             );
           })}
