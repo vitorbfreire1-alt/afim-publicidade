@@ -37,9 +37,9 @@ function Barra({ clientes, permuta, capacidade, alto = "h-2.5" }: { clientes: nu
   );
 }
 
-function Numero({ rotulo, valor, sub, cor }: { rotulo: string; valor: string; sub?: string; cor: string }) {
+function Numero({ rotulo, valor, sub, cor, className = "" }: { rotulo: string; valor: string; sub?: string; cor: string; className?: string }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+    <div className={`rounded-xl border border-white/10 bg-white/[0.03] p-3 ${className}`}>
       <p className="text-[0.68rem] font-semibold uppercase tracking-wider text-ink-faint">{rotulo}</p>
       <p className={`font-display text-2xl font-bold leading-tight ${cor}`}>{valor}</p>
       {sub && <p className="text-[0.7rem] text-ink-faint">{sub}</p>}
@@ -76,11 +76,10 @@ export default function OcupacaoPainel({ dados, previsao, mesSelecionado, verCon
           {futuro && <p className="mt-1 text-xs text-warn">Considera só os contratos já cadastrados; renovações e contratos novos ainda não lançados não entram.</p>}
         </div>
 
-        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
           <Numero rotulo="Pagando" valor={`${g.clientes}%`} sub={`${num(geral.clientes)} cota(s)`} cor="text-gold-soft" />
           <Numero rotulo="Permuta" valor={`${g.permuta}%`} sub={`${num(geral.permuta)} cota(s)`} cor="text-good" />
-          <Numero rotulo="Ociosa (livre)" valor={`${g.livre}%`} sub={`${num(Math.max(0, geral.capacidade - ocupadas))} cota(s)`} cor="text-ink" />
-          <Numero rotulo="Poderia estar pagando" valor={`${g.potencial}%`} sub="livre + permuta" cor="text-warn" />
+          <Numero className="col-span-2 sm:col-span-1" rotulo="Ociosidade real" valor={`${g.livre}%`} sub={`${num(Math.max(0, geral.capacidade - ocupadas))} cota(s) livres, sem contar permuta`} cor="text-warn" />
         </div>
         <div className="mt-4">
           <Barra clientes={geral.clientes} permuta={geral.permuta} capacidade={geral.capacidade} alto="h-3.5" />
@@ -104,7 +103,7 @@ export default function OcupacaoPainel({ dados, previsao, mesSelecionado, verCon
                   </span>
                 </div>
                 <Barra clientes={l.clientes} permuta={l.permuta} capacidade={l.capacidade} />
-                <p className="mt-1 text-xs text-ink-faint">pagando {p.clientes}% · permuta {p.permuta}% · ociosa {p.livre}% · poderia estar pagando <span className="text-warn">{p.potencial}%</span></p>
+                <p className="mt-1 text-xs text-ink-faint">pagando {p.clientes}% · permuta {p.permuta}% · ociosidade real <span className="text-warn">{p.livre}%</span></p>
               </li>
             );
           })}
